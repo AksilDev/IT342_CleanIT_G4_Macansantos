@@ -1,10 +1,12 @@
 package com.G4.backend.repository;
 
 import com.G4.backend.entity.User;
-import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface UserRepository extends JpaRepository<User, Long> {
-	Optional<User> findByUsername(String username);
-	boolean existsByUsername(String username);
+import java.util.Optional;
+import java.util.UUID;
+
+public interface UserRepository extends JpaRepository<User, UUID> {
+    Optional<User> findByEmail(String email);
+    boolean existsByEmail(String email);
 }

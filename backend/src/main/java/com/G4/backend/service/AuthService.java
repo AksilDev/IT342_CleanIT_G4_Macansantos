@@ -4,59 +4,50 @@ import com.G4.backend.dto.LoginRequest;
 import com.G4.backend.dto.RegisterRequest;
 import com.G4.backend.entity.User;
 import com.G4.backend.repository.UserRepository;
-import java.util.Map;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 @Service
 public class AuthService {
 
-	private final UserRepository userRepository;
-	private final PasswordEncoder passwordEncoder;
-	private final AuthenticationManager authenticationManager;
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
-	public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, AuthenticationManager authenticationManager) {
-		this.userRepository = userRepository;
-		this.passwordEncoder = passwordEncoder;
-		this.authenticationManager = authenticationManager;
-	}
+    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+    }
 
-	public void register(RegisterRequest request) {
-		if (request == null) {
-			throw new IllegalArgumentException("Request is required");
-		}
-		if (request.getUsername() == null || request.getUsername().isBlank()) {
-			throw new IllegalArgumentException("Username is required");
-		}
-		if (request.getPassword() == null || request.getPassword().isBlank()) {
-			throw new IllegalArgumentException("Password is required");
-		}
-		if (userRepository.existsByUsername(request.getUsername())) {
-			throw new IllegalArgumentException("Username already exists");
-		}
+    public String register(RegisterRequest request) {
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new RuntimeException("Email already exists");
+        }
 
-		User user = new User();
-		user.setUsername(request.getUsername());
-		user.setPassword(passwordEncoder.encode(request.getPassword()));
-		user.setRole("USER");
+        if (!request.getRole().equals("client") && !request.getRole().equals("technician")) {
+            throw new RuntimeException("Invalid role");
+        }
 
-		userRepository.save(user);
-	}
+        User user = new User();
+        user.setName(request.getName());
+        user.setEmail(request.getEmail());
+        user.setContactNo(request.getContactNo());
+        user.setRole(request.getRole());
+        user.setImageUrl(request.getImageUrl());
+        user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
 
-	public Map<String, Object> login(LoginRequest request) {
-		if (request == null) {
-			throw new IllegalArgumentException("Request is required");
-		}
-		Authentication auth = authenticationManager.authenticate(
-			new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
-		);
+        userRepository.save(user);
 
-		return Map.of(
-			"message", "Logged in",
-			"username", auth.getName()
-		);
-	}
+        return "User registered successfully";
+    }
+
+    public String login(LoginRequest request) {
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
+            throw new RuntimeException("Invalid password");
+        }
+
+        return "Login successful as " + user.getRole();
+    }
 }
