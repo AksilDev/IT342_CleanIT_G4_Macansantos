@@ -112,7 +112,6 @@ export default function Register() {
 									>
 										<option>Client</option>
 										<option>Cleaner</option>
-										<option>Admin</option>
 									</select>
 								</div>
 							</div>
