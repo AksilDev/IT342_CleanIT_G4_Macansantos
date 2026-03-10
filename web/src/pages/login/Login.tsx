@@ -7,6 +7,7 @@ type LoginResponse = {
 	username?: string;
 };
 
+
 export default function Login() {
 	const navigate = useNavigate();
 	const [username, setUsername] = useState('');
