@@ -32,7 +32,6 @@ public class AuthService {
         user.setEmail(request.getEmail());
         user.setContactNo(request.getContactNo());
         user.setRole(request.getRole());
-        user.setImageUrl(request.getImageUrl());
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
 
         userRepository.save(user);

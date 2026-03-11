@@ -21,7 +21,7 @@ export default function Login() {
 		setLoading(true);
 
 		try {
-			const res = await api.post<LoginResponse>('/auth/login', { username, password });
+			const res = await api.post<LoginResponse>('/v1/auth/login', { email: username, password });
 			localStorage.setItem('cleanit.user', JSON.stringify(res.data ?? {}));
 			navigate('/dashboard');
 		} catch (err: any) {
@@ -48,11 +48,11 @@ export default function Login() {
 
 						<form className="mt-8 space-y-5" onSubmit={onSubmit}>
 							<div>
-								<label className="text-sm font-medium text-slate-700">Username</label>
+								<label className="text-sm font-medium text-slate-700">Email</label>
 								<input
 									value={username}
 									onChange={(e) => setUsername(e.target.value)}
-									placeholder="Enter your username"
+									placeholder="Enter your email"
 									className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
 									required
 								/>

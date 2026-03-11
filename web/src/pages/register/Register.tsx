@@ -12,13 +12,13 @@ export default function Register() {
 	const [username, setUsername] = useState('');
 	const [password, setPassword] = useState('');
 	const [contact, setContact] = useState('');
-	const [role, setRole] = useState('Client');
+	const [role, setRole] = useState('client');
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
 	const canSubmit = useMemo(() => {
-		return username.trim().length > 0 && password.trim().length > 0;
-	}, [username, password]);
+		return name.trim().length > 0 && username.trim().length > 0 && password.trim().length > 0;
+	}, [name, username, password]);
 
 	async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
 		e.preventDefault();
@@ -26,7 +26,7 @@ export default function Register() {
 		setLoading(true);
 
 		try {
-			await api.post<RegisterResponse>('/auth/register', { username, password });
+			await api.post<RegisterResponse>('/v1/auth/register', { name, email: username, password, contactNo: contact, role: role.toLowerCase() });
 			navigate('/login');
 		} catch (err: any) {
 			setError(err?.response?.data?.message ?? 'Registration failed');
@@ -110,21 +110,13 @@ export default function Register() {
 										onChange={(e) => setRole(e.target.value)}
 										className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
 									>
-										<option>Client</option>
-										<option>Cleaner</option>
+										<option>client</option>
+										<option>technician</option>
 									</select>
 								</div>
 							</div>
 
-							<div>
-								<label className="text-sm font-medium text-slate-700">Upload Valid ID</label>
-								<div className="mt-2 flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500">
-									<div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-700">📎</div>
-									<div className="flex-1">Attach</div>
-									<input type="file" className="text-xs" />
-								</div>
-							</div>
-
+							
 							{error ? (
 								<div className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</div>
 							) : null}
