@@ -39,7 +39,7 @@ public class AuthService {
         return "User registered successfully";
     }
 
-    public String login(LoginRequest request) {
+    public LoginResponse login(LoginRequest request) {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
@@ -47,6 +47,13 @@ public class AuthService {
             throw new RuntimeException("Invalid password");
         }
 
-        return "Login successful as " + user.getRole();
+        LoginResponse response = new LoginResponse();
+        response.setName(user.getName());
+        response.setEmail(user.getEmail());
+        response.setRole(user.getRole());
+        response.setContactNo(user.getContactNo());
+        response.setMessage("Login successful");
+
+        return response;
     }
 }

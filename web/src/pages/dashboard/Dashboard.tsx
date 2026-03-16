@@ -1,6 +1,9 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 
 export default function Dashboard() {
+	const navigate = useNavigate();
+	
 	const user = (() => {
 		try {
 			const raw = localStorage.getItem('cleanit.user');
@@ -10,19 +13,24 @@ export default function Dashboard() {
 		}
 	})();
 
+	const handleLogout = () => {
+		localStorage.removeItem('cleanit.user');
+		navigate('/login');
+	};
+
 	return (
 		<div className="min-h-screen bg-slate-50">
 			<div className="mx-auto max-w-6xl px-4 py-10">
 				<div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
 					<div>
-						<h1 className="text-3xl font-extrabold text-slate-900">Welcome Back!</h1>
+						<h1 className="text-3xl font-extrabold text-slate-900">Welcome Back, {user?.name || 'User'}!</h1>
 						<div className="mt-1 text-sm text-slate-500">Manage your bookings and explore our services</div>
 					</div>
 
 					<div className="w-full max-w-sm rounded-xl border border-violet-200 bg-white p-4 shadow-sm">
 						<div className="flex items-center gap-3">
 							<div className="flex h-11 w-11 items-center justify-center rounded-full bg-violet-700 text-sm font-bold text-white">
-								{String(user?.username ?? 'JM')
+								{String(user?.name || 'User')
 									.split(' ')
 									.map((s: string) => s[0])
 									.join('')
@@ -30,10 +38,19 @@ export default function Dashboard() {
 									.slice(0, 2)}
 							</div>
 							<div className="flex-1">
-								<div className="text-sm font-semibold text-slate-800">{user?.username ?? 'John Miller'}</div>
-								<div className="text-xs text-slate-500">+63 911 111 1111</div>
+								<div className="text-sm font-semibold text-slate-800">{user?.name || 'Guest User'}</div>
+								<div className="text-xs text-slate-500">{user?.email || 'No email'}</div>
+								<div className="text-xs text-slate-500">{user?.contactNo || 'No contact info'}</div>
 							</div>
 							<div className="rounded-full bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700">Unverified</div>
+						</div>
+						<div className="mt-4 flex gap-2">
+							<button
+								onClick={handleLogout}
+								className="flex-1 rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100 transition-colors"
+							>
+								Logout
+							</button>
 						</div>
 					</div>
 				</div>

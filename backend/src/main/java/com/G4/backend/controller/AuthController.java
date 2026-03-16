@@ -1,6 +1,7 @@
 package com.G4.backend.controller;
 
 import com.G4.backend.dto.LoginRequest;
+import com.G4.backend.dto.LoginResponse;
 import com.G4.backend.dto.RegisterRequest;
 import com.G4.backend.service.AuthService;
 
@@ -31,14 +32,14 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
+    public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest request) {
 
         try {
-            String response = authService.login(request);
+            LoginResponse response = authService.login(request);
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+            return ResponseEntity.badRequest().body(null);
         }
     }
 }

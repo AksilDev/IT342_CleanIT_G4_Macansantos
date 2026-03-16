@@ -33,5 +33,9 @@ build/
 .vscode/
 
 ### Environment variables ###
-.env
+!.env
 !.env.example
+
+
+web/dist
+node_modules
