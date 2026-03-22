@@ -1,11 +1,14 @@
 package com.G4.backend.service;
 
 import com.G4.backend.dto.LoginRequest;
+import com.G4.backend.dto.LoginResponse;
 import com.G4.backend.dto.RegisterRequest;
 import com.G4.backend.entity.User;
 import com.G4.backend.repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
 
 @Service
 public class AuthService {
@@ -33,6 +36,8 @@ public class AuthService {
         user.setContactNo(request.getContactNo());
         user.setRole(request.getRole());
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        user.setImageUrl(request.getImageUrl());
+        user.setCreatedAt(LocalDateTime.now());
 
         userRepository.save(user);
 

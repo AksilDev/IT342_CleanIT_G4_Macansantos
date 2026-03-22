@@ -1,8 +1,29 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 export default function Dashboard() {
 	const navigate = useNavigate();
+	const [searchParams] = useSearchParams();
+	
+	// Handle OAuth redirect data
+	useEffect(() => {
+		const oauth = searchParams.get('oauth');
+		const email = searchParams.get('user');
+		const role = searchParams.get('role');
+		
+		if (oauth === 'success' && email && role) {
+			// Store OAuth user data in localStorage
+			const userData = {
+				email: decodeURIComponent(email),
+				role: role,
+				name: decodeURIComponent(email).split('@')[0] // temporary name from email
+			};
+			localStorage.setItem('cleanit.user', JSON.stringify(userData));
+			// Clean up URL
+			navigate('/dashboard', { replace: true });
+			window.location.reload(); // reload to refresh user data
+		}
+	}, [searchParams, navigate]);
 	
 	const user = (() => {
 		try {
@@ -12,6 +33,15 @@ export default function Dashboard() {
 			return null;
 		}
 	})();
+
+	// Redirect to login if no user data
+	React.useEffect(() => {
+		if (!user) {
+			navigate('/login');
+		}
+	}, [user, navigate]);
+
+	if (!user) return null;
 
 	const handleLogout = () => {
 		localStorage.removeItem('cleanit.user');
