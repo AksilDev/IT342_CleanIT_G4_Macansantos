@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../../api/axios';
 
@@ -8,6 +8,7 @@ type RegisterResponse = {
 
 export default function Register() {
 	const navigate = useNavigate();
+	const fileInputRef = useRef<HTMLInputElement>(null);
 	const [name, setName] = useState('');
 	const [username, setUsername] = useState('');
 	const [password, setPassword] = useState('');
@@ -15,10 +16,62 @@ export default function Register() {
 	const [role, setRole] = useState('client');
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [imageFile, setImageFile] = useState<File | null>(null);
+	const [imagePreview, setImagePreview] = useState<string | null>(null);
+	const [imageUrl, setImageUrl] = useState<string | null>(null);
+	const [uploadingImage, setUploadingImage] = useState(false);
 
 	const canSubmit = useMemo(() => {
-		return name.trim().length > 0 && username.trim().length > 0 && password.trim().length > 0;
-	}, [name, username, password]);
+		return name.trim().length > 0 && username.trim().length > 0 && password.trim().length > 0 && imageFile !== null;
+	}, [name, username, password, imageFile]);
+
+	const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const file = e.target.files?.[0];
+		if (file) {
+			if (file.size > 5 * 1024 * 1024) {
+				setError('Image size must be less than 5MB');
+				return;
+			}
+			if (!file.type.startsWith('image/')) {
+				setError('Please select an image file');
+				return;
+			}
+			setImageFile(file);
+			setError(null);
+			
+			// Create preview
+			const reader = new FileReader();
+			reader.onloadend = () => {
+				setImagePreview(reader.result as string);
+			};
+			reader.readAsDataURL(file);
+		}
+	};
+
+	const uploadImage = async (): Promise<string | null> => {
+		if (!imageFile) return null;
+		
+		setUploadingImage(true);
+		try {
+			const formData = new FormData();
+			formData.append('file', imageFile);
+			
+			const response = await api.post('/v1/auth/upload-image', formData, {
+				headers: {
+					'Content-Type': 'multipart/form-data',
+				},
+			});
+			
+			const uploadedUrl = response.data?.imageUrl;
+			setImageUrl(uploadedUrl);
+			return uploadedUrl;
+		} catch (err: any) {
+			setError(err?.response?.data?.message ?? 'Failed to upload image');
+			return null;
+		} finally {
+			setUploadingImage(false);
+		}
+	};
 
 	async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
 		e.preventDefault();
@@ -26,7 +79,24 @@ export default function Register() {
 		setLoading(true);
 
 		try {
-			await api.post<RegisterResponse>('/v1/auth/register', { name, email: username, password, contactNo: contact, role: role.toLowerCase() });
+			// Upload image first if selected
+			let uploadedImageUrl = null;
+			if (imageFile) {
+				uploadedImageUrl = await uploadImage();
+				if (!uploadedImageUrl) {
+					setLoading(false);
+					return;
+				}
+			}
+			
+			await api.post<RegisterResponse>('/v1/auth/register', { 
+				name, 
+				email: username, 
+				password, 
+				contactNo: contact, 
+				role: role.toLowerCase(),
+				imageUrl: uploadedImageUrl 
+			});
 			navigate('/login');
 		} catch (err: any) {
 			setError(err?.response?.data?.message ?? 'Registration failed');
@@ -116,7 +186,63 @@ export default function Register() {
 								</div>
 							</div>
 
-							
+							{/* ID Verification Image Upload */}
+							<div>
+								<label className="text-sm font-medium text-slate-700">ID Verification Image <span className="text-rose-500">*</span></label>
+								<p className="text-xs text-slate-500 mt-1">Upload a valid ID (Driver's License, Passport, National ID) for admin verification</p>
+								<div className="mt-2">
+									<input
+										ref={fileInputRef}
+										type="file"
+										accept="image/*"
+										onChange={handleImageSelect}
+										className="hidden"
+									/>
+									<div className="flex items-center gap-4">
+										{imagePreview ? (
+											<div className="relative">
+												<img
+													src={imagePreview}
+													alt="ID Preview"
+													className="h-24 w-32 rounded-lg object-cover border-2 border-violet-200"
+												/>
+												<button
+													type="button"
+													onClick={() => {
+														setImageFile(null);
+														setImagePreview(null);
+														setImageUrl(null);
+													}}
+													className="absolute -top-1 -right-1 h-6 w-6 rounded-full bg-rose-500 text-white text-xs hover:bg-rose-600"
+												>
+													✕
+												</button>
+											</div>
+										) : (
+											<button
+												type="button"
+												onClick={() => fileInputRef.current?.click()}
+												className="flex h-24 w-32 items-center justify-center rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 text-slate-400 hover:border-violet-400 hover:bg-violet-50 hover:text-violet-600 transition-colors"
+											>
+												<span className="text-2xl">🪪</span>
+											</button>
+										)}
+										<div className="flex-1">
+											<button
+												type="button"
+												onClick={() => fileInputRef.current?.click()}
+												className="rounded-lg border border-violet-300 bg-white px-4 py-2 text-sm font-medium text-violet-700 hover:bg-violet-50 transition-colors"
+											>
+												{imagePreview ? 'Change ID Image' : 'Select ID Image'}
+											</button>
+											<p className="mt-1 text-xs text-slate-500">
+												Max 5MB, JPG/PNG recommended. Clear photo of your ID required.
+											</p>
+										</div>
+									</div>
+								</div>
+							</div>
+
 							{error ? (
 								<div className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</div>
 							) : null}
@@ -124,10 +250,10 @@ export default function Register() {
 							<div className="flex justify-center pt-2">
 								<button
 									type="submit"
-									disabled={!canSubmit || loading}
+									disabled={!canSubmit || loading || uploadingImage}
 									className="rounded-xl bg-violet-700 px-10 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-200 transition hover:bg-violet-800 disabled:opacity-60"
 								>
-									{loading ? 'Submitting...' : 'Complete Form →'}
+									{uploadingImage ? 'Uploading Image...' : loading ? 'Submitting...' : 'Complete Form →'}
 								</button>
 							</div>
 

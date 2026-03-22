@@ -30,7 +30,9 @@ export default function Login() {
 			// Role-based redirection
 			const userRole = res.data?.role?.toLowerCase();
 			if (userRole === 'technician') {
-				navigate('/Tdashboard');
+				navigate('/dashboard/technician');
+			} else if (userRole === 'admin') {
+				navigate('/admin/dashboard');
 			} else {
 				navigate('/dashboard');
 			}
