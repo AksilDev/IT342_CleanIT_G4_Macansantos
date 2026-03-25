@@ -8,6 +8,8 @@ type LoginResponse = {
 	email?: string;
 	role?: string;
 	contactNo?: string;
+	verified?: boolean;
+	token?: string;
 };
 
 
@@ -25,7 +27,17 @@ export default function Login() {
 
 		try {
 			const res = await api.post<LoginResponse>('/v1/auth/login', { email: username, password });
-			localStorage.setItem('cleanit.user', JSON.stringify(res.data ?? {}));
+			
+			const userData = {
+				name: res.data?.name,
+				email: res.data?.email,
+				role: res.data?.role,
+				contactNo: res.data?.contactNo,
+				verified: res.data?.verified,
+			};
+			
+			localStorage.setItem('cleanit.user', JSON.stringify(userData));
+			localStorage.setItem('cleanit.token', res.data?.token || '');
 			
 			// Role-based redirection
 			const userRole = res.data?.role?.toLowerCase();
