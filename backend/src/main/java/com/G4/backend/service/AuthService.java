@@ -1,5 +1,6 @@
 package com.G4.backend.service;
 
+import com.G4.backend.config.JwtService;
 import com.G4.backend.dto.LoginRequest;
 import com.G4.backend.dto.LoginResponse;
 import com.G4.backend.dto.RegisterRequest;
@@ -7,7 +8,6 @@ import com.G4.backend.entity.User;
 import com.G4.backend.repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-
 import java.time.LocalDateTime;
 
 @Service
@@ -15,10 +15,14 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
 
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public AuthService(UserRepository userRepository,
+                       PasswordEncoder passwordEncoder,
+                       JwtService jwtService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.jwtService = jwtService;
     }
 
     public String register(RegisterRequest request) {
@@ -52,12 +56,16 @@ public class AuthService {
             throw new RuntimeException("Invalid password");
         }
 
+        String token = jwtService.generateToken(user.getEmail(), user.getRole());
+
         LoginResponse response = new LoginResponse();
         response.setName(user.getName());
         response.setEmail(user.getEmail());
         response.setRole(user.getRole());
         response.setContactNo(user.getContactNo());
+        response.setVerified(user.getVerified());
         response.setMessage("Login successful");
+        response.setToken(token);
 
         return response;
     }

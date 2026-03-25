@@ -10,6 +10,7 @@ interface User {
 	role: string;
 	imageUrl: string | null;
 	createdAt: string;
+	verified?: boolean;
 }
 
 export default function Adashboard() {
@@ -17,45 +18,60 @@ export default function Adashboard() {
 	const [pendingUsers, setPendingUsers] = useState<User[]>([]);
 	const [selectedUser, setSelectedUser] = useState<User | null>(null);
 	const [loading, setLoading] = useState(false);
+	const [fetchLoading, setFetchLoading] = useState(true);
 
-	const user = (() => {
+	const user = React.useMemo(() => {
 		try {
 			const raw = localStorage.getItem('cleanit.user');
 			return raw ? JSON.parse(raw) : null;
 		} catch {
 			return null;
 		}
-	})();
+	}, []);
 
 	// Redirect to login if no user data
 	useEffect(() => {
-		if (!user) {
+		if (!user || user.role !== 'admin') {
 			navigate('/login');
 		}
 	}, [user, navigate]);
 
-	// Fetch pending users (placeholder - will need backend endpoint)
+	// Fetch pending users from backend
 	useEffect(() => {
-		// TODO: Fetch pending verifications from backend
-		// For now, showing empty state
-	}, []);
+		const fetchPendingUsers = async () => {
+			try {
+				setFetchLoading(true);
+				const response = await api.get('/v1/admin/pending-verifications');
+				setPendingUsers(response.data);
+			} catch (err) {
+				console.error('Failed to fetch pending users:', err);
+			} finally {
+				setFetchLoading(false);
+			}
+		};
+		
+		if (user && user.role === 'admin') {
+			fetchPendingUsers();
+		}
+	}, [user]);
 
 	if (!user) return null;
 
 	const handleLogout = () => {
 		localStorage.removeItem('cleanit.user');
+		localStorage.removeItem('cleanit.token');
 		navigate('/login');
 	};
 
 	const handleApprove = async (userId: string) => {
 		try {
 			setLoading(true);
-			// TODO: Call backend to approve user
-			// await api.post(`/v1/admin/verify-user/${userId}`, { status: 'approved' });
+			await api.post(`/v1/admin/verify-user/${userId}`, { status: 'approved' });
 			setPendingUsers(prev => prev.filter(u => u.id !== userId));
 			setSelectedUser(null);
 		} catch (err) {
 			console.error('Failed to approve user:', err);
+			alert('Failed to approve user');
 		} finally {
 			setLoading(false);
 		}
@@ -64,12 +80,12 @@ export default function Adashboard() {
 	const handleReject = async (userId: string) => {
 		try {
 			setLoading(true);
-			// TODO: Call backend to reject user
-			// await api.post(`/v1/admin/verify-user/${userId}`, { status: 'rejected' });
+			await api.post(`/v1/admin/verify-user/${userId}`, { status: 'rejected' });
 			setPendingUsers(prev => prev.filter(u => u.id !== userId));
 			setSelectedUser(null);
 		} catch (err) {
 			console.error('Failed to reject user:', err);
+			alert('Failed to reject user');
 		} finally {
 			setLoading(false);
 		}
@@ -158,7 +174,11 @@ export default function Adashboard() {
 						<span className="text-sm text-slate-500">Review ID images to approve or reject users</span>
 					</div>
 
-					{pendingUsers.length === 0 ? (
+					{fetchLoading ? (
+						<div className="rounded-xl border border-slate-200 bg-slate-50 p-8 text-center">
+							<div className="text-violet-600">Loading pending verifications...</div>
+						</div>
+					) : pendingUsers.length === 0 ? (
 						<div className="rounded-xl border border-slate-200 bg-slate-50 p-8 text-center">
 							<div className="text-4xl mb-3">🪪</div>
 							<p className="text-slate-600 font-medium">No pending verifications</p>
