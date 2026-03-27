@@ -6,7 +6,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/user")
@@ -38,6 +40,49 @@ public class UserController {
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Failed to fetch user profile: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/technicians/verified")
+    public ResponseEntity<?> getVerifiedTechnicians() {
+        try {
+            List<User> technicians = userRepository.findTop5VerifiedTechnicians();
+            List<Map<String, Object>> response = technicians.stream().map(tech -> {
+                Map<String, Object> map = new HashMap<>();
+                map.put("id", tech.getId());
+                map.put("name", tech.getName());
+                map.put("email", tech.getEmail());
+                map.put("contactNo", tech.getContactNo());
+                map.put("imageUrl", tech.getImageUrl());
+                map.put("available", true);
+                map.put("rating", 4.5 + Math.random() * 0.5); // Random rating between 4.5-5.0
+                map.put("reviews", (int)(50 + Math.random() * 100)); // Random reviews 50-150
+                return map;
+            }).collect(Collectors.toList());
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Failed to fetch technicians: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/technicians/all-verified")
+    public ResponseEntity<?> getAllVerifiedTechnicians() {
+        try {
+            List<User> technicians = userRepository.findAllVerifiedTechnicians();
+            List<Map<String, Object>> response = technicians.stream().map(tech -> {
+                Map<String, Object> map = new HashMap<>();
+                map.put("id", tech.getId());
+                map.put("name", tech.getName());
+                map.put("email", tech.getEmail());
+                map.put("contactNo", tech.getContactNo());
+                map.put("imageUrl", tech.getImageUrl());
+                map.put("verified", tech.getVerified());
+                map.put("createdAt", tech.getCreatedAt());
+                return map;
+            }).collect(Collectors.toList());
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Failed to fetch technicians: " + e.getMessage());
         }
     }
 }
