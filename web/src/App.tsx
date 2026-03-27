@@ -6,6 +6,7 @@ import RoleSelection from './pages/auth/RoleSelection';
 import Dashboard from './pages/dashboard/Dashboard';
 import Tdashboard from './pages/dashboard/Tdashboard';
 import Adashboard from './pages/dashboard/Adashboard';
+import Booking from './pages/booking/Booking';
 
 export default function App() {
 	return (
@@ -19,6 +20,7 @@ export default function App() {
 					<Route path="/dashboard" element={<Dashboard />} />
 					<Route path="/dashboard/technician" element={<Tdashboard />} />
 					<Route path="/admin/dashboard" element={<Adashboard />} />
+					<Route path="/booking/:serviceId" element={<Booking />} />
 					<Route path="*" element={<Navigate to="/login" replace />} />
 				</Routes>
 			</Router>

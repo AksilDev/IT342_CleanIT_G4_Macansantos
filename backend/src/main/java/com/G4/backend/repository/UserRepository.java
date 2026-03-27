@@ -15,4 +15,10 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     @Query("SELECT u FROM User u WHERE u.role IN :roles AND (u.verified = false OR u.verified IS NULL)")
     List<User> findPendingVerifications(@Param("roles") List<String> roles);
+
+    @Query("SELECT u FROM User u WHERE LOWER(u.role) = 'technician' AND (u.verified = true OR u.verified IS NULL) ORDER BY u.createdAt DESC LIMIT 5")
+    List<User> findTop5VerifiedTechnicians();
+
+    @Query("SELECT u FROM User u WHERE LOWER(u.role) = 'technician' AND (u.verified = true OR u.verified IS NULL) ORDER BY u.createdAt DESC")
+    List<User> findAllVerifiedTechnicians();
 }
