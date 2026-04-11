@@ -1,21 +1,13 @@
 package com.G4.backend.controller;
 
-import com.G4.backend.dto.LoginRequest;
-import com.G4.backend.dto.LoginResponse;
-import com.G4.backend.dto.RegisterRequest;
+import com.G4.backend.dto.*;
 import com.G4.backend.service.AuthService;
-<<<<<<< Updated upstream
-
-=======
->>>>>>> Stashed changes
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
-<<<<<<< Updated upstream
-=======
 import java.util.Map;
 
->>>>>>> Stashed changes
 @RestController
 @RequestMapping("/api/v1/auth")
 public class AuthController {
@@ -27,39 +19,24 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-<<<<<<< Updated upstream
     public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
-
         try {
             String response = authService.register(request);
             return ResponseEntity.ok(response);
-
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
-=======
-    public ResponseEntity<String> register(@RequestBody RegisterRequest request) {
-        return ResponseEntity.ok(authService.register(request));
->>>>>>> Stashed changes
     }
 
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest request) {
-<<<<<<< Updated upstream
-
         try {
             LoginResponse response = authService.login(request);
             return ResponseEntity.ok(response);
-
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(null);
         }
     }
-=======
-        return ResponseEntity.ok(authService.login(request));
-    }
-
-    // ── NEW: called by RoleSelection.tsx ──────────────────────────────────────
 
     @PostMapping("/upload-image")
     public ResponseEntity<Map<String, String>> uploadImage(
@@ -79,5 +56,4 @@ public class AuthController {
         String email = body.get("email");
         return ResponseEntity.ok(authService.oauthCheck(email));
     }
->>>>>>> Stashed changes
 }

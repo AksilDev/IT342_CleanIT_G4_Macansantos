@@ -4,13 +4,6 @@ import api from '../../api/axios';
 import { supabase } from '../../api/supabaseClient';
 
 type LoginResponse = {
-<<<<<<< Updated upstream
-	message?: string;
-	name?: string;
-	email?: string;
-	role?: string;
-	contactNo?: string;
-=======
   message?: string;
   name?: string;
   email?: string;
@@ -18,7 +11,6 @@ type LoginResponse = {
   contactNo?: string;
   verified?: boolean;
   token?: string;
->>>>>>> Stashed changes
 };
 
 export default function Login() {
@@ -55,25 +47,6 @@ export default function Login() {
     }
   }
 
-<<<<<<< Updated upstream
-		try {
-			const res = await api.post<LoginResponse>('/v1/auth/login', { email: username, password });
-			localStorage.setItem('cleanit.user', JSON.stringify(res.data ?? {}));
-			
-			// Role-based redirection
-			const userRole = res.data?.role?.toLowerCase();
-			if (userRole === 'technician') {
-				navigate('/Tdashboard');
-			} else {
-				navigate('/dashboard');
-			}
-		} catch (err: any) {
-			setError(err?.response?.data?.message ?? 'Login failed');
-		} finally {
-			setLoading(false);
-		}
-	}
-=======
   // 🔑 NEW: Supabase Google OAuth
   async function handleGoogleLogin() {
     setGoogleLoading(true);
@@ -90,7 +63,6 @@ export default function Login() {
     }
     // If no error, browser will redirect to Google automatically
   }
->>>>>>> Stashed changes
 
   return (
     <div className="min-h-screen w-full bg-neutral-900">

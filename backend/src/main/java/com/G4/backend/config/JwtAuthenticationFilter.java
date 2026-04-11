@@ -1,5 +1,6 @@
 package com.G4.backend.config;
 
+import com.G4.backend.service.JwtService;
 import com.G4.backend.entity.User;
 import com.G4.backend.repository.UserRepository;
 import jakarta.servlet.FilterChain;
@@ -31,8 +32,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
-                                    FilterChain filterChain) throws ServletException, IOException {
+            HttpServletResponse response,
+            FilterChain filterChain) throws ServletException, IOException {
 
         final String authHeader = request.getHeader("Authorization");
 
@@ -48,12 +49,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         User user = optionalUser.get();
 
                         if (jwtService.isTokenValid(jwt, user.getEmail())) {
-                            UsernamePasswordAuthenticationToken authToken =
-                                    new UsernamePasswordAuthenticationToken(
-                                            user,
-                                            null,
-                                            List.of(new SimpleGrantedAuthority(user.getRole()))
-                                    );
+                            UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                                    user,
+                                    null,
+                                    List.of(new SimpleGrantedAuthority(user.getRole())));
 
                             authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                             SecurityContextHolder.getContext().setAuthentication(authToken);
@@ -61,7 +60,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     }
                 }
             } catch (JwtException e) {
-                // If token is expired or invalid, we simply don't set the authentication context.
+                // If token is expired or invalid, we simply don't set the authentication
+                // context.
                 // This allows public endpoints to still be accessible.
             }
         }
