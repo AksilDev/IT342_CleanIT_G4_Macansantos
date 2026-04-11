@@ -3,6 +3,7 @@ package com.G4.backend.service;
 import com.G4.backend.dto.*;
 import com.G4.backend.entity.User;
 import com.G4.backend.repository.UserRepository;
+import com.G4.backend.config.JwtService;
 import com.G4.backend.service.decorator.*;
 import com.G4.backend.service.factory.UserFactory;
 import com.G4.backend.service.observer.UserEventPublisher;

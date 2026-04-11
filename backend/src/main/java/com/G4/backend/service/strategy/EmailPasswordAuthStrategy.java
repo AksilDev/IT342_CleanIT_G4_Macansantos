@@ -4,7 +4,7 @@ import com.G4.backend.dto.LoginRequest;
 import com.G4.backend.dto.LoginResponse;
 import com.G4.backend.entity.User;
 import com.G4.backend.repository.UserRepository;
-import com.G4.backend.service.JwtService;
+import com.G4.backend.config.JwtService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 

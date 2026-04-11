@@ -1,6 +1,5 @@
 package com.G4.backend.config;
 
-import com.G4.backend.service.JwtService;
 import com.G4.backend.entity.User;
 import com.G4.backend.repository.UserRepository;
 import jakarta.servlet.FilterChain;
