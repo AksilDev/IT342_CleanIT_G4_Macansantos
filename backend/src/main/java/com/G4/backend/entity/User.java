@@ -30,6 +30,9 @@ public class User {
     @Column(name = "image_url")
     private String imageUrl;
 
+    @Column(name = "verified")
+    private Boolean verified = false;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
@@ -58,4 +61,10 @@ public class User {
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public String getImageUrl() { return imageUrl; }
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+
+    public Boolean getVerified() { return verified; }
+    public void setVerified(Boolean verified) { this.verified = verified; }
 }
