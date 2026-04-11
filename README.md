@@ -1,4 +1,4 @@
-# CleanIT (IT342) - Group 4
+# CleanIT (IT342) 
 
 CleanIT is a full-stack web application for managing cleaning services and client bookings.
 
