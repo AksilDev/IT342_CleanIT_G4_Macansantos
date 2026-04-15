@@ -127,9 +127,14 @@ export default function Adashboard() {
 					<div className="flex items-center gap-3">
 						<div className="flex items-center gap-3 rounded-lg border border-violet-600 bg-violet-50 px-4 py-2">
 							<div className="flex h-8 w-8 items-center justify-center rounded-full bg-violet-700 text-xs font-bold text-white">
-								AD
+								{String(user?.name || 'Admin')
+									.split(' ')
+									.map((s: string) => s[0])
+									.join('')
+									.toUpperCase()
+									.slice(0, 2)}
 							</div>
-							<span className="text-sm font-medium text-violet-900">Admin User</span>
+							<span className="text-sm font-medium text-violet-900">{user?.name || 'Admin'}</span>
 						</div>
 						<button
 							onClick={handleLogout}

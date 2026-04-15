@@ -1,14 +1,10 @@
 package com.G4.backend.controller;
 
 import com.G4.backend.entity.Booking;
-import com.G4.backend.entity.User;
-import com.G4.backend.repository.BookingRepository;
-import com.G4.backend.repository.UserRepository;
+import com.G4.backend.service.BookingService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.*;
 
 @RestController
@@ -16,69 +12,100 @@ import java.util.*;
 @CrossOrigin(origins = "http://localhost:5173")
 public class BookingController {
 
-    private final BookingRepository bookingRepository;
-    private final UserRepository userRepository;
+    private final BookingService bookingService;
 
-    public BookingController(BookingRepository bookingRepository, UserRepository userRepository) {
-        this.bookingRepository = bookingRepository;
-        this.userRepository = userRepository;
+    public BookingController(BookingService bookingService) {
+        this.bookingService = bookingService;
     }
 
     @PostMapping("/create")
     public ResponseEntity<?> createBooking(@RequestBody Map<String, Object> request) {
         try {
-            Booking booking = new Booking();
-            booking.setClientId(UUID.fromString((String) request.get("clientId")));
-            booking.setTechnicianId(UUID.fromString((String) request.get("technicianId")));
-            booking.setServiceType((String) request.get("serviceType"));
-            booking.setDeviceType((String) request.get("deviceType"));
+            Booking booking = bookingService.createBooking(request);
             
-            List<String> addOns = (List<String>) request.get("addOns");
-            if (addOns != null && !addOns.isEmpty()) {
-                booking.setAddOns(String.join(",", addOns));
-            }
+            // Return booking details without sensitive information
+            Map<String, Object> response = new HashMap<>();
+            response.put("id", booking.getId());
+            response.put("bookingCode", booking.getBookingCode());
+            response.put("serviceType", booking.getServiceType());
+            response.put("deviceType", booking.getDeviceType());
+            response.put("timeSlot", booking.getTimeSlot());
+            response.put("bookingDate", booking.getBookingDate());
+            response.put("totalAmount", booking.getTotalAmount());
+            response.put("status", booking.getStatus().getValue());
+            response.put("statusDescription", booking.getStatus().getDescription());
+            response.put("createdAt", booking.getCreatedAt());
             
-            booking.setTimeSlot((String) request.get("timeSlot"));
-            booking.setBookingDate(LocalDate.parse((String) request.get("bookingDate")));
-            booking.setAddress((String) request.get("address"));
-            booking.setLandmark((String) request.get("landmark"));
-            booking.setSpecialInstructions((String) request.get("specialInstructions"));
-            booking.setTotalAmount(Double.valueOf(request.get("totalAmount").toString()));
-            booking.setStatus("pending");
-            booking.setCreatedAt(LocalDateTime.now());
-
-            Booking saved = bookingRepository.save(booking);
-            return ResponseEntity.ok(saved);
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Failed to create booking: " + e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of(
+                "error", "Failed to create booking",
+                "message", e.getMessage()
+            ));
         }
     }
 
     @GetMapping("/client/{clientId}")
     public ResponseEntity<?> getClientBookings(@PathVariable UUID clientId) {
         try {
-            List<Booking> bookings = bookingRepository.findByClientIdOrderByCreatedAtDesc(clientId);
+            List<Booking> bookings = bookingService.getClientBookings(clientId);
             List<Map<String, Object>> response = new ArrayList<>();
             
             for (Booking booking : bookings) {
                 Map<String, Object> map = new HashMap<>();
                 map.put("id", booking.getId());
+                map.put("bookingCode", booking.getBookingCode());
                 map.put("serviceType", booking.getServiceType());
                 map.put("deviceType", booking.getDeviceType());
-                map.put("addOns", booking.getAddOns() != null ? Arrays.asList(booking.getAddOns().split(",")) : new ArrayList<>());
+                map.put("addOns", booking.getAddOns() != null ? 
+                    Arrays.asList(booking.getAddOns().split(",")) : new ArrayList<>());
                 map.put("timeSlot", booking.getTimeSlot());
                 map.put("bookingDate", booking.getBookingDate());
-                map.put("address", booking.getAddress());
+                map.put("address", booking.getAddress()); // Client can always see their address
                 map.put("landmark", booking.getLandmark());
                 map.put("specialInstructions", booking.getSpecialInstructions());
                 map.put("totalAmount", booking.getTotalAmount());
-                map.put("status", booking.getStatus());
+                map.put("status", booking.getStatus().getValue());
+                map.put("statusDescription", booking.getStatus().getDescription());
                 map.put("createdAt", booking.getCreatedAt());
+                map.put("confirmedAt", booking.getConfirmedAt());
+                map.put("startedAt", booking.getStartedAt());
+                map.put("completedAt", booking.getCompletedAt());
                 
-                User technician = userRepository.findById(booking.getTechnicianId()).orElse(null);
-                if (technician != null) {
-                    map.put("technicianName", technician.getName());
-                    map.put("technicianContact", technician.getContactNo());
+                // Show technician acceptance status
+                if (booking.getTechnicianId() != null) {
+                    map.put("technicianAssigned", true);
+                    map.put("technicianId", booking.getTechnicianId());
+                    
+                    // Get technician details from UserRepository
+                    // For now, we'll add a placeholder - in real implementation you'd fetch from UserRepository
+                    map.put("technicianAcceptedAt", booking.getConfirmedAt());
+                    map.put("acceptanceMessage", "Your booking has been accepted by a technician!");
+                } else {
+                    map.put("technicianAssigned", false);
+                    map.put("acceptanceMessage", "Waiting for technician to accept your booking...");
+                }
+                
+                // Add status-specific messages for client
+                switch (booking.getStatus()) {
+                    case PENDING:
+                        map.put("statusMessage", "Your booking is waiting for a technician to accept it.");
+                        break;
+                    case CONFIRMED:
+                        map.put("statusMessage", "Great! A technician has accepted your booking.");
+                        break;
+                    case IN_PROGRESS:
+                        map.put("statusMessage", "Your service is currently in progress.");
+                        break;
+                    case COMPLETED:
+                        map.put("statusMessage", "Your service has been completed successfully!");
+                        break;
+                    case CANCELLED:
+                        map.put("statusMessage", "This booking has been cancelled.");
+                        break;
+                    case NO_SHOW:
+                        map.put("statusMessage", "Marked as no-show - please contact support.");
+                        break;
                 }
                 
                 response.add(map);
@@ -86,97 +113,48 @@ public class BookingController {
             
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Failed to fetch bookings: " + e.getMessage());
-        }
-    }
-
-    @GetMapping("/technician/{technicianId}")
-    public ResponseEntity<?> getTechnicianBookings(@PathVariable UUID technicianId) {
-        try {
-            List<Booking> bookings = bookingRepository.findByTechnicianIdOrderByCreatedAtDesc(technicianId);
-            List<Map<String, Object>> response = new ArrayList<>();
-            
-            for (Booking booking : bookings) {
-                Map<String, Object> map = new HashMap<>();
-                map.put("id", booking.getId());
-                map.put("serviceType", booking.getServiceType());
-                map.put("deviceType", booking.getDeviceType());
-                map.put("timeSlot", booking.getTimeSlot());
-                map.put("bookingDate", booking.getBookingDate());
-                map.put("address", booking.getAddress());
-                map.put("status", booking.getStatus());
-                map.put("totalAmount", booking.getTotalAmount());
-                
-                User client = userRepository.findById(booking.getClientId()).orElse(null);
-                if (client != null) {
-                    map.put("clientName", client.getName());
-                    map.put("clientContact", client.getContactNo());
-                }
-                
-                response.add(map);
-            }
-            
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Failed to fetch bookings: " + e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of(
+                "error", "Failed to fetch client bookings",
+                "message", e.getMessage()
+            ));
         }
     }
 
     @GetMapping("/{bookingId}")
-    public ResponseEntity<?> getBookingDetails(@PathVariable UUID bookingId) {
+    public ResponseEntity<?> getBookingDetails(
+            @PathVariable UUID bookingId,
+            @RequestParam UUID requestingUserId) {
         try {
-            Booking booking = bookingRepository.findById(bookingId)
-                    .orElseThrow(() -> new RuntimeException("Booking not found"));
-            
-            Map<String, Object> map = new HashMap<>();
-            map.put("id", booking.getId());
-            map.put("serviceType", booking.getServiceType());
-            map.put("deviceType", booking.getDeviceType());
-            map.put("addOns", booking.getAddOns() != null ? Arrays.asList(booking.getAddOns().split(",")) : new ArrayList<>());
-            map.put("timeSlot", booking.getTimeSlot());
-            map.put("bookingDate", booking.getBookingDate());
-            map.put("address", booking.getAddress());
-            map.put("landmark", booking.getLandmark());
-            map.put("specialInstructions", booking.getSpecialInstructions());
-            map.put("totalAmount", booking.getTotalAmount());
-            map.put("status", booking.getStatus());
-            map.put("createdAt", booking.getCreatedAt());
-            
-            User technician = userRepository.findById(booking.getTechnicianId()).orElse(null);
-            if (technician != null) {
-                map.put("technicianName", technician.getName());
-                map.put("technicianContact", technician.getContactNo());
-                map.put("technicianEmail", technician.getEmail());
-            }
-            
-            User client = userRepository.findById(booking.getClientId()).orElse(null);
-            if (client != null) {
-                map.put("clientName", client.getName());
-                map.put("clientContact", client.getContactNo());
-            }
-            
-            return ResponseEntity.ok(map);
+            Map<String, Object> booking = bookingService.getBookingDetails(bookingId, requestingUserId);
+            return ResponseEntity.ok(booking);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Failed to fetch booking: " + e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of(
+                "error", "Failed to fetch booking details",
+                "message", e.getMessage()
+            ));
         }
     }
 
-    @PostMapping("/{bookingId}/status")
-    public ResponseEntity<?> updateBookingStatus(@PathVariable UUID bookingId, @RequestBody Map<String, String> request) {
+    @PostMapping("/{bookingId}/cancel")
+    public ResponseEntity<?> cancelBooking(
+            @PathVariable UUID bookingId,
+            @RequestBody Map<String, String> request) {
         try {
-            Booking booking = bookingRepository.findById(bookingId)
-                    .orElseThrow(() -> new RuntimeException("Booking not found"));
+            UUID userId = UUID.fromString(request.get("userId"));
+            String reason = request.getOrDefault("reason", "Cancelled by user");
             
-            String newStatus = request.get("status");
-            if (newStatus == null || !Arrays.asList("pending", "confirmed", "in_progress", "completed", "cancelled").contains(newStatus)) {
-                return ResponseEntity.badRequest().body("Invalid status");
-            }
+            Booking cancelledBooking = bookingService.cancelBooking(bookingId, userId, reason);
             
-            booking.setStatus(newStatus);
-            bookingRepository.save(booking);
-            return ResponseEntity.ok("Status updated successfully");
+            return ResponseEntity.ok(Map.of(
+                "message", "Booking cancelled successfully",
+                "bookingId", cancelledBooking.getId(),
+                "status", cancelledBooking.getStatus().getValue()
+            ));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Failed to update status: " + e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of(
+                "error", "Failed to cancel booking",
+                "message", e.getMessage()
+            ));
         }
     }
 }

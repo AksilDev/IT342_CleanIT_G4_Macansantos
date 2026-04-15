@@ -1,72 +1,156 @@
 package com.G4.backend.controller;
 
-import com.G4.backend.entity.User;
-import com.G4.backend.repository.UserRepository;
+import com.G4.backend.service.BookingService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.stream.Collectors;
+import java.util.*;
 
 @RestController
 @RequestMapping("/api/v1/admin")
 @CrossOrigin(origins = "http://localhost:5173")
 public class AdminController {
 
-    private final UserRepository userRepository;
+    private final BookingService bookingService;
 
-    public AdminController(UserRepository userRepository) {
-        this.userRepository = userRepository;
+    public AdminController(BookingService bookingService) {
+        this.bookingService = bookingService;
     }
 
-    @GetMapping("/pending-verifications")
-    public ResponseEntity<?> getPendingVerifications() {
+    /**
+     * Get booking statistics for admin dashboard
+     */
+    @GetMapping("/dashboard/statistics")
+    public ResponseEntity<?> getDashboardStatistics() {
         try {
-            List<String> targetRoles = Arrays.asList("client", "technician");
-            List<User> pendingUsers = userRepository.findPendingVerifications(targetRoles);
-
-            List<Map<String, Object>> response = pendingUsers.stream().map(user -> {
-                Map<String, Object> map = new HashMap<>();
-                map.put("id", user.getId());
-                map.put("name", user.getName());
-                map.put("email", user.getEmail());
-                map.put("contactNo", user.getContactNo());
-                map.put("role", user.getRole());
-                map.put("imageUrl", user.getImageUrl());
-                map.put("createdAt", user.getCreatedAt());
-                map.put("verified", user.getVerified());
-                return map;
-            }).collect(Collectors.toList());
-
-            return ResponseEntity.ok(response);
+            Map<String, Object> statistics = bookingService.getBookingStatistics();
+            return ResponseEntity.ok(statistics);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Failed to fetch pending verifications: " + e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of(
+                "error", "Failed to fetch dashboard statistics",
+                "message", e.getMessage()
+            ));
         }
     }
 
-    @PostMapping("/verify-user/{userId}")
-    public ResponseEntity<?> verifyUser(@PathVariable UUID userId, @RequestBody Map<String, String> request) {
+    /**
+     * Get recent bookings for admin dashboard
+     */
+    @GetMapping("/dashboard/recent-bookings")
+    public ResponseEntity<?> getRecentBookings(@RequestParam(defaultValue = "10") int limit) {
         try {
-            User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new RuntimeException("User not found"));
-
-            String status = request.get("status");
-            if ("approved".equals(status)) {
-                user.setVerified(true);
-                userRepository.save(user);
-                return ResponseEntity.ok("User verified successfully");
-            } else if ("rejected".equals(status)) {
-                userRepository.delete(user);
-                return ResponseEntity.ok("User rejected and removed");
-            } else {
-                return ResponseEntity.badRequest().body("Invalid status. Must be 'approved' or 'rejected'");
-            }
+            List<Map<String, Object>> recentBookings = bookingService.getRecentBookings(limit);
+            return ResponseEntity.ok(recentBookings);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Failed to verify user: " + e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of(
+                "error", "Failed to fetch recent bookings",
+                "message", e.getMessage()
+            ));
+        }
+    }
+
+    /**
+     * Get all bookings with pagination for admin management
+     */
+    @GetMapping("/bookings")
+    public ResponseEntity<?> getAllBookings(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        try {
+            List<Map<String, Object>> bookings = bookingService.getAllBookingsForAdmin(page, size);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("bookings", bookings);
+            response.put("page", page);
+            response.put("size", size);
+            response.put("hasMore", bookings.size() == size); // Simple check for more data
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "error", "Failed to fetch bookings",
+                "message", e.getMessage()
+            ));
+        }
+    }
+
+    /**
+     * Get bookings by status for admin filtering
+     */
+    @GetMapping("/bookings/status/{status}")
+    public ResponseEntity<?> getBookingsByStatus(@PathVariable String status) {
+        try {
+            com.G4.backend.enums.BookingStatus bookingStatus = 
+                com.G4.backend.enums.BookingStatus.fromValue(status);
+            
+            List<com.G4.backend.entity.Booking> bookings = 
+                bookingService.getBookingsByStatus(bookingStatus);
+            
+            List<Map<String, Object>> response = new ArrayList<>();
+            for (com.G4.backend.entity.Booking booking : bookings) {
+                Map<String, Object> bookingMap = new HashMap<>();
+                bookingMap.put("id", booking.getId());
+                bookingMap.put("bookingCode", booking.getBookingCode());
+                bookingMap.put("serviceType", booking.getServiceType());
+                bookingMap.put("deviceType", booking.getDeviceType());
+                bookingMap.put("status", booking.getStatus().getValue());
+                bookingMap.put("totalAmount", booking.getTotalAmount());
+                bookingMap.put("bookingDate", booking.getBookingDate());
+                bookingMap.put("timeSlot", booking.getTimeSlot());
+                bookingMap.put("createdAt", booking.getCreatedAt());
+                bookingMap.put("address", booking.getAddress()); // Admin sees all addresses
+                
+                response.add(bookingMap);
+            }
+            
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "error", "Invalid status",
+                "message", e.getMessage()
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "error", "Failed to fetch bookings by status",
+                "message", e.getMessage()
+            ));
+        }
+    }
+
+    /**
+     * Get dashboard overview with key metrics
+     */
+    @GetMapping("/dashboard/overview")
+    public ResponseEntity<?> getDashboardOverview() {
+        try {
+            Map<String, Object> statistics = bookingService.getBookingStatistics();
+            List<Map<String, Object>> recentBookings = bookingService.getRecentBookings(5);
+            
+            Map<String, Object> overview = new HashMap<>();
+            overview.put("statistics", statistics);
+            overview.put("recentBookings", recentBookings);
+            
+            // Add some derived metrics
+            long totalBookings = (Long) statistics.get("total");
+            long completedBookings = (Long) statistics.get("completed");
+            long pendingBookings = (Long) statistics.get("pending");
+            long confirmedBookings = (Long) statistics.get("confirmed");
+            
+            Map<String, Object> metrics = new HashMap<>();
+            metrics.put("completionRate", totalBookings > 0 ? 
+                Math.round((completedBookings * 100.0) / totalBookings) : 0);
+            metrics.put("activeBookings", pendingBookings + confirmedBookings);
+            metrics.put("totalRevenue", statistics.get("totalRevenue"));
+            metrics.put("monthRevenue", statistics.get("monthRevenue"));
+            
+            overview.put("metrics", metrics);
+            
+            return ResponseEntity.ok(overview);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "error", "Failed to fetch dashboard overview",
+                "message", e.getMessage()
+            ));
         }
     }
 }

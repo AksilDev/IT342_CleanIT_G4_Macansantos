@@ -1,7 +1,7 @@
 package com.G4.backend.entity;
 
+import com.G4.backend.enums.BookingStatus;
 import jakarta.persistence.*;
-import org.hibernate.annotations.GenericGenerator;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -12,14 +12,13 @@ import java.util.UUID;
 public class Booking {
 
     @Id
-    @GeneratedValue(generator = "UUID")
-    @GenericGenerator(name = "UUID", strategy = "org.hibernate.id.UUIDGenerator")
+    @GeneratedValue
     private UUID id;
 
     @Column(nullable = false)
     private UUID clientId;
 
-    @Column(nullable = false)
+    @Column(nullable = true) // Technician is assigned when they accept the booking
     private UUID technicianId;
 
     @Column(nullable = false)
@@ -49,16 +48,66 @@ public class Booking {
     @Column(nullable = false)
     private Double totalAmount;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String status;
+    private BookingStatus status;
 
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
+    @Column
+    private LocalDateTime updatedAt;
+
+    @Column
+    private LocalDateTime confirmedAt;
+
+    @Column
+    private LocalDateTime startedAt;
+
+    @Column
+    private LocalDateTime completedAt;
+
+    @Column
+    private LocalDateTime cancelledAt;
+
+    @Column
+    private LocalDateTime noShowAt;
+
+    @Column
+    private String bookingCode; // Unique booking reference like BK-2024-00123
+
+    @Column
+    private String statusReason; // Reason for status change
+
+    @Column
+    private String paymentStatus; // pending, paid, refunded
+
+    @Column
+    private Double estimatedDuration; // in hours
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
-        status = "pending";
+        updatedAt = LocalDateTime.now();
+        status = BookingStatus.PENDING;
+        paymentStatus = "pending";
+        
+        // Generate booking code
+        if (bookingCode == null) {
+            bookingCode = generateBookingCode();
+        }
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
+
+    private String generateBookingCode() {
+        // Generate format: BK-YYYY-NNNNN
+        int year = LocalDateTime.now().getYear();
+        int randomNum = (int) (Math.random() * 99999) + 1;
+        return String.format("BK-%d-%05d", year, randomNum);
     }
 
     // Getters and Setters
@@ -158,11 +207,11 @@ public class Booking {
         this.totalAmount = totalAmount;
     }
 
-    public String getStatus() {
+    public BookingStatus getStatus() {
         return status;
     }
 
-    public void setStatus(String status) {
+    public void setStatus(BookingStatus status) {
         this.status = status;
     }
 
@@ -172,5 +221,85 @@ public class Booking {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
+    public LocalDateTime getConfirmedAt() {
+        return confirmedAt;
+    }
+
+    public void setConfirmedAt(LocalDateTime confirmedAt) {
+        this.confirmedAt = confirmedAt;
+    }
+
+    public LocalDateTime getStartedAt() {
+        return startedAt;
+    }
+
+    public void setStartedAt(LocalDateTime startedAt) {
+        this.startedAt = startedAt;
+    }
+
+    public LocalDateTime getCompletedAt() {
+        return completedAt;
+    }
+
+    public void setCompletedAt(LocalDateTime completedAt) {
+        this.completedAt = completedAt;
+    }
+
+    public LocalDateTime getCancelledAt() {
+        return cancelledAt;
+    }
+
+    public void setCancelledAt(LocalDateTime cancelledAt) {
+        this.cancelledAt = cancelledAt;
+    }
+
+    public LocalDateTime getNoShowAt() {
+        return noShowAt;
+    }
+
+    public void setNoShowAt(LocalDateTime noShowAt) {
+        this.noShowAt = noShowAt;
+    }
+
+    public String getBookingCode() {
+        return bookingCode;
+    }
+
+    public void setBookingCode(String bookingCode) {
+        this.bookingCode = bookingCode;
+    }
+
+    public String getStatusReason() {
+        return statusReason;
+    }
+
+    public void setStatusReason(String statusReason) {
+        this.statusReason = statusReason;
+    }
+
+    public String getPaymentStatus() {
+        return paymentStatus;
+    }
+
+    public void setPaymentStatus(String paymentStatus) {
+        this.paymentStatus = paymentStatus;
+    }
+
+    public Double getEstimatedDuration() {
+        return estimatedDuration;
+    }
+
+    public void setEstimatedDuration(Double estimatedDuration) {
+        this.estimatedDuration = estimatedDuration;
     }
 }
