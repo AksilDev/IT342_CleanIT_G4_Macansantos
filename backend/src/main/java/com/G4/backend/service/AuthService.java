@@ -11,6 +11,7 @@ import com.G4.backend.service.strategy.AuthenticationContext;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import com.G4.backend.config.JwtService;
 
 import java.io.IOException;
 import java.nio.file.Files;

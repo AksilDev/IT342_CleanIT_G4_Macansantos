@@ -1,0 +1,11 @@
+echo "# Build files
+.gradle/
+build/
+*.apk
+*.aab
+local.properties
+.idea/
+*.iml
+captures/
+.externalNativeBuild/
+.cxx/" > mobile/.gitignore
