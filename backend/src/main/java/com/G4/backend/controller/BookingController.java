@@ -142,9 +142,9 @@ public class BookingController {
         try {
             UUID userId = UUID.fromString(request.get("userId"));
             String reason = request.getOrDefault("reason", "Cancelled by user");
-            
+
             Booking cancelledBooking = bookingService.cancelBooking(bookingId, userId, reason);
-            
+
             return ResponseEntity.ok(Map.of(
                 "message", "Booking cancelled successfully",
                 "bookingId", cancelledBooking.getId(),
@@ -153,6 +153,37 @@ public class BookingController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of(
                 "error", "Failed to cancel booking",
+                "message", e.getMessage()
+            ));
+        }
+    }
+
+    @PostMapping("/{bookingId}/reschedule")
+    public ResponseEntity<?> rescheduleBooking(
+            @PathVariable UUID bookingId,
+            @RequestBody Map<String, Object> request) {
+        try {
+            UUID requestedBy = UUID.fromString((String) request.get("requestedBy"));
+            String newDateStr = (String) request.get("newBookingDate");
+            String newTimeSlot = (String) request.get("newTimeSlot");
+            String reason = (String) request.getOrDefault("reason", "Rescheduled by client");
+
+            java.time.LocalDate newDate = java.time.LocalDate.parse(newDateStr);
+
+            Booking rescheduledBooking = bookingService.rescheduleBooking(
+                bookingId, newDate, newTimeSlot, requestedBy, reason
+            );
+
+            return ResponseEntity.ok(Map.of(
+                "message", "Booking rescheduled successfully",
+                "bookingId", rescheduledBooking.getId(),
+                "newDate", rescheduledBooking.getBookingDate(),
+                "newTimeSlot", rescheduledBooking.getTimeSlot(),
+                "status", rescheduledBooking.getStatus().getValue()
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "error", "Failed to reschedule booking",
                 "message", e.getMessage()
             ));
         }

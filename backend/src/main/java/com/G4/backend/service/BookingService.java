@@ -506,4 +506,54 @@ public class BookingService {
         
         return map;
     }
+
+    /**
+     * Reschedule booking
+     */
+    public Booking rescheduleBooking(UUID bookingId, LocalDate newDate, String newTimeSlot, UUID requestedBy, String reason) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new BookingException("Booking not found", "BOOKING_NOT_FOUND"));
+
+        // Only pending or confirmed bookings can be rescheduled
+        if (booking.getStatus() != BookingStatus.PENDING && booking.getStatus() != BookingStatus.CONFIRMED) {
+            throw new BookingException("Only pending or confirmed bookings can be rescheduled", "CANNOT_RESCHEDULE");
+        }
+
+        // Only client who created the booking can reschedule
+        if (!booking.getClientId().equals(requestedBy)) {
+            throw new BookingException("You can only reschedule your own bookings", "INSUFFICIENT_PERMISSIONS");
+        }
+
+        // Check if new date is in the future
+        if (newDate.isBefore(LocalDate.now())) {
+            throw new BookingException("New booking date must be in the future", "INVALID_DATE");
+        }
+
+        // If booking is confirmed, check technician availability for new slot
+        if (booking.getStatus() == BookingStatus.CONFIRMED && booking.getTechnicianId() != null) {
+            List<BookingStatus> conflictStatuses = Arrays.asList(BookingStatus.CONFIRMED, BookingStatus.IN_PROGRESS);
+            long conflicts = bookingRepository.countByTechnicianIdAndBookingDateAndTimeSlotAndStatusIn(
+                booking.getTechnicianId(), newDate, newTimeSlot, conflictStatuses
+            );
+
+            if (conflicts > 0) {
+                throw new BookingException("Technician is not available at the requested time slot", "TIME_SLOT_CONFLICT");
+            }
+        }
+
+        // Update booking
+        booking.setBookingDate(newDate);
+        booking.setTimeSlot(newTimeSlot);
+        booking.setRescheduledAt(LocalDateTime.now());
+        booking.setRescheduleReason(reason);
+        booking.setUpdatedAt(LocalDateTime.now());
+
+        Booking savedBooking = bookingRepository.save(booking);
+
+        // Send notifications
+        notificationService.notifyStatusChange(savedBooking, booking.getStatus(),
+            "Booking rescheduled to " + newDate + " at " + newTimeSlot + ". Reason: " + reason);
+
+        return savedBooking;
+    }
 }

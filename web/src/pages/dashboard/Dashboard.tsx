@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Eye } from 'lucide-react';
+import { Eye, XCircle, Calendar as CalendarIcon, AlertCircle, CheckCircle } from 'lucide-react';
 import api from '../../api/axios';
 
 // Service images - using the images provided by the user
@@ -75,12 +75,21 @@ export default function Dashboard() {
 	const [bookings, setBookings] = useState<Booking[]>([]);
 	const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
 	const [showBookingModal, setShowBookingModal] = useState(false);
+	const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+	const [cancellingBooking, setCancellingBooking] = useState<string | null>(null);
+	const [reschedulingBooking, setReschedulingBooking] = useState<string | null>(null);
+	const [newDate, setNewDate] = useState('');
+	const [newTimeSlot, setNewTimeSlot] = useState('');
+	const [rescheduleReason, setRescheduleReason] = useState('');
+	const [errorMessage, setErrorMessage] = useState<string | null>(null);
+	const [successMessage, setSuccessMessage] = useState<string | null>(null);
 	
-	// Handle OAuth redirect data
+	// Handle OAuth redirect data and refresh after booking
 	useEffect(() => {
 		const oauth = searchParams.get('oauth');
 		const email = searchParams.get('user');
 		const role = searchParams.get('role');
+		const refresh = searchParams.get('refresh');
 		
 		if (oauth === 'success' && email && role) {
 			const userData = {
@@ -92,7 +101,15 @@ export default function Dashboard() {
 			navigate('/dashboard', { replace: true });
 			window.location.reload();
 		}
-	}, [searchParams, navigate]);
+		
+		// Refresh bookings after new booking created
+		if (refresh === 'true' && user?.id) {
+			api.get(`/v1/bookings/client/${user.id}`)
+				.then(res => setBookings(res.data))
+				.catch(err => console.error('Failed to refresh bookings', err));
+			navigate('/dashboard', { replace: true });
+		}
+	}, [searchParams, navigate, user]);
 	
 	// Fetch user profile on mount
 	useEffect(() => {
@@ -153,6 +170,69 @@ export default function Dashboard() {
 		navigate(`/booking/${service.id}`);
 	};
 
+	const handleCancelBooking = async (bookingId: string) => {
+		if (!confirm('Are you sure you want to cancel this booking?')) return;
+		
+		setCancellingBooking(bookingId);
+		setErrorMessage(null);
+		
+		try {
+			await api.post(`/v1/bookings/${bookingId}/cancel`, {
+				userId: user?.id,
+				reason: 'Cancelled by client'
+			});
+			
+			setSuccessMessage('Booking cancelled successfully');
+			setTimeout(() => setSuccessMessage(null), 3000);
+			
+			// Refresh bookings
+			const bookingsRes = await api.get(`/v1/bookings/client/${user?.id}`);
+			setBookings(bookingsRes.data);
+		} catch (err: any) {
+			setErrorMessage(err?.response?.data?.message || 'Failed to cancel booking');
+			setTimeout(() => setErrorMessage(null), 5000);
+		} finally {
+			setCancellingBooking(null);
+		}
+	};
+
+	const openRescheduleModal = (booking: Booking) => {
+		setSelectedBooking(booking);
+		setNewDate(booking.bookingDate);
+		setNewTimeSlot(booking.timeSlot);
+		setRescheduleReason('');
+		setShowRescheduleModal(true);
+	};
+
+	const handleRescheduleBooking = async () => {
+		if (!selectedBooking || !user?.id) return;
+		
+		setReschedulingBooking(selectedBooking.id);
+		setErrorMessage(null);
+		
+		try {
+			await api.post(`/v1/bookings/${selectedBooking.id}/reschedule`, {
+				requestedBy: user.id,
+				newBookingDate: newDate,
+				newTimeSlot: newTimeSlot,
+				reason: rescheduleReason || 'Rescheduled by client'
+			});
+			
+			setSuccessMessage('Booking rescheduled successfully');
+			setTimeout(() => setSuccessMessage(null), 3000);
+			setShowRescheduleModal(false);
+			
+			// Refresh bookings
+			const bookingsRes = await api.get(`/v1/bookings/client/${user?.id}`);
+			setBookings(bookingsRes.data);
+		} catch (err: any) {
+			setErrorMessage(err?.response?.data?.message || 'Failed to reschedule booking');
+			setTimeout(() => setErrorMessage(null), 5000);
+		} finally {
+			setReschedulingBooking(null);
+		}
+	};
+
 	return (
 		<div className="min-h-screen bg-white">
 			<div className="mx-auto max-w-6xl px-4 py-10">
@@ -195,6 +275,20 @@ export default function Dashboard() {
 						</div>
 					</div>
 				</div>
+
+				{/* Alerts */}
+				{errorMessage && (
+					<div className="mt-6 rounded-lg border border-rose-200 bg-rose-50 p-4 flex items-center gap-3">
+						<AlertCircle className="h-5 w-5 text-rose-600 flex-shrink-0" />
+						<p className="text-sm text-rose-700">{errorMessage}</p>
+					</div>
+				)}
+				{successMessage && (
+					<div className="mt-6 rounded-lg border border-emerald-200 bg-emerald-50 p-4 flex items-center gap-3">
+						<CheckCircle className="h-5 w-5 text-emerald-600 flex-shrink-0" />
+						<p className="text-sm text-emerald-700">{successMessage}</p>
+					</div>
+				)}
 
 				<div className="mt-10 space-y-8">
 					{/* My Booking Section */}
@@ -240,6 +334,28 @@ export default function Dashboard() {
 													</button>
 												</div>
 											</div>
+											
+											{/* Action Buttons */}
+											{(booking.status === 'pending' || booking.status === 'confirmed') && (
+												<div className="mt-3 flex gap-2">
+													<button
+														onClick={() => openRescheduleModal(booking)}
+														className="flex items-center gap-1 rounded-lg bg-blue-100 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-200 transition-colors"
+													>
+														<CalendarIcon className="h-3 w-3" />
+														Reschedule
+													</button>
+													<button
+														onClick={() => handleCancelBooking(booking.id)}
+														disabled={cancellingBooking === booking.id}
+														className="flex items-center gap-1 rounded-lg bg-rose-100 px-3 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-200 transition-colors disabled:opacity-50"
+													>
+														<XCircle className="h-3 w-3" />
+														{cancellingBooking === booking.id ? 'Cancelling...' : 'Cancel'}
+													</button>
+												</div>
+											)}
+											
 											{booking.technicianName && (
 												<div className="mt-2 text-xs text-slate-500">
 													Technician: {booking.technicianName}
@@ -461,6 +577,87 @@ export default function Dashboard() {
 							>
 								Close
 							</button>
+						</div>
+					</div>
+				</div>
+			)}
+
+			{/* Reschedule Modal */}
+			{showRescheduleModal && selectedBooking && (
+				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+					<div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
+						<div className="mb-4 flex items-center justify-between">
+							<h3 className="text-lg font-bold text-slate-900">Reschedule Booking</h3>
+							<button
+								onClick={() => setShowRescheduleModal(false)}
+								className="rounded-full p-1 hover:bg-slate-100"
+							>
+								✕
+							</button>
+						</div>
+
+						<div className="space-y-4">
+							<div className="rounded-lg bg-violet-50 p-3">
+								<div className="text-xs text-slate-500">Current Booking</div>
+								<div className="font-semibold text-slate-900">{selectedBooking.serviceType}</div>
+								<div className="mt-1 text-xs text-slate-500">
+									📅 {selectedBooking.bookingDate} • 🕐 {selectedBooking.timeSlot}
+								</div>
+							</div>
+
+							<div>
+								<label className="block text-sm font-medium text-slate-700 mb-1">New Date</label>
+								<input
+									type="date"
+									value={newDate}
+									onChange={(e) => setNewDate(e.target.value)}
+									min={new Date().toISOString().split('T')[0]}
+									className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none"
+								/>
+							</div>
+
+							<div>
+								<label className="block text-sm font-medium text-slate-700 mb-1">New Time Slot</label>
+								<select
+									value={newTimeSlot}
+									onChange={(e) => setNewTimeSlot(e.target.value)}
+									className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none"
+								>
+									<option value="">Select a time slot</option>
+									<option value="09:00 - 11:00">09:00 AM - 11:00 AM</option>
+									<option value="11:00 - 13:00">11:00 AM - 01:00 PM</option>
+									<option value="13:00 - 15:00">01:00 PM - 03:00 PM</option>
+									<option value="15:00 - 17:00">03:00 PM - 05:00 PM</option>
+									<option value="17:00 - 19:00">05:00 PM - 07:00 PM</option>
+								</select>
+							</div>
+
+							<div>
+								<label className="block text-sm font-medium text-slate-700 mb-1">Reason (Optional)</label>
+								<textarea
+									value={rescheduleReason}
+									onChange={(e) => setRescheduleReason(e.target.value)}
+									placeholder="Why do you need to reschedule?"
+									rows={2}
+									className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none resize-none"
+								/>
+							</div>
+
+							<div className="flex gap-3 pt-2">
+								<button
+									onClick={() => setShowRescheduleModal(false)}
+									className="flex-1 rounded-lg border border-slate-300 bg-white py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+								>
+									Cancel
+								</button>
+								<button
+									onClick={handleRescheduleBooking}
+									disabled={!newDate || !newTimeSlot || reschedulingBooking === selectedBooking.id}
+									className="flex-1 rounded-lg bg-violet-600 py-2 text-sm font-semibold text-white hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed"
+								>
+									{reschedulingBooking === selectedBooking.id ? 'Rescheduling...' : 'Confirm Reschedule'}
+								</button>
+							</div>
 						</div>
 					</div>
 				</div>

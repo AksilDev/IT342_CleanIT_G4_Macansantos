@@ -88,7 +88,8 @@ public class AuthService {
                 request.getEmail(),
                 request.getPassword(),
                 request.getRole(),
-                request.getContactNo()
+                request.getContactNo(),
+                request.getImageUrl()
         );
 
         userRepository.save(user);

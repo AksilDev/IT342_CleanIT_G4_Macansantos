@@ -180,7 +180,7 @@ export default function Booking() {
 
 			await api.post('/v1/bookings/create', bookingData);
 			alert('Booking submitted successfully!');
-			navigate('/dashboard');
+			navigate('/dashboard?refresh=true');
 		} catch (err: any) {
 			alert(err?.response?.data?.message || 'Failed to submit booking');
 		} finally {

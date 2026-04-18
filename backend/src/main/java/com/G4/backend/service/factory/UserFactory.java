@@ -13,13 +13,14 @@ public class UserFactory {
         this.passwordEncoder = passwordEncoder;
     }
 
-    public User create(String name, String email, String password, String role, String contactNo) {
+    public User create(String name, String email, String password, String role, String contactNo, String imageUrl) {
         User user = new User();
         user.setName(name);
         user.setEmail(email);
         user.setPasswordHash(passwordEncoder.encode(password));
         user.setRole(role);
         user.setContactNo(contactNo);
+        user.setImageUrl(imageUrl);
         return user;
     }
 }

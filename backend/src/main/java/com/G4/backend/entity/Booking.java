@@ -74,6 +74,12 @@ public class Booking {
     private LocalDateTime noShowAt;
 
     @Column
+    private LocalDateTime rescheduledAt;
+
+    @Column
+    private String rescheduleReason;
+
+    @Column
     private String bookingCode; // Unique booking reference like BK-2024-00123
 
     @Column
@@ -269,6 +275,22 @@ public class Booking {
 
     public void setNoShowAt(LocalDateTime noShowAt) {
         this.noShowAt = noShowAt;
+    }
+
+    public LocalDateTime getRescheduledAt() {
+        return rescheduledAt;
+    }
+
+    public void setRescheduledAt(LocalDateTime rescheduledAt) {
+        this.rescheduledAt = rescheduledAt;
+    }
+
+    public String getRescheduleReason() {
+        return rescheduleReason;
+    }
+
+    public void setRescheduleReason(String rescheduleReason) {
+        this.rescheduleReason = rescheduleReason;
     }
 
     public String getBookingCode() {

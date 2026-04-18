@@ -36,6 +36,11 @@ public class User {
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+    }
+
     public User() {}
 
     public UUID getId() { return id; }

@@ -1,33 +1,288 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { 
+	LogOut, 
+	CheckCircle, 
+	Clock, 
+	MapPin, 
+	Calendar, 
+	DollarSign, 
+	AlertCircle,
+	Briefcase,
+	TrendingUp,
+	Power,
+	Eye,
+	X,
+	ChevronRight,
+	Check
+} from 'lucide-react';
+import api from '../../api/axios';
+
+// Types
+interface User {
+	id: string;
+	name: string;
+	email: string;
+	contactNo?: string;
+	verified: boolean;
+	role: string;
+}
+
+interface Booking {
+	id: string;
+	bookingCode: string;
+	serviceType: string;
+	deviceType: string;
+	addOns?: string[];
+	timeSlot: string;
+	bookingDate: string;
+	address?: string;
+	landmark?: string;
+	specialInstructions?: string;
+	totalAmount: number;
+	status: 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled' | 'no_show';
+	createdAt: string;
+	confirmedAt?: string;
+	startedAt?: string;
+	completedAt?: string;
+	clientName?: string;
+	clientContact?: string;
+	clientEmail?: string;
+	technicianAssigned?: boolean;
+	acceptanceMessage?: string;
+	statusMessage?: string;
+}
 
 export default function Tdashboard() {
 	const navigate = useNavigate();
 	
-	const user = (() => {
-		try {
-			const raw = localStorage.getItem('cleanit.user');
-			return raw ? JSON.parse(raw) : null;
-		} catch {
+	// User state
+	const [user, setUser] = useState<User | null>(null);
+	const [loading, setLoading] = useState(true);
+	
+	// Data states
+	const [pendingBookings, setPendingBookings] = useState<Booking[]>([]);
+	const [myBookings, setMyBookings] = useState<Booking[]>([]);
+	const [isAvailable, setIsAvailable] = useState<boolean>(true);
+	
+	// UI states
+	const [activeTab, setActiveTab] = useState<'overview' | 'pending' | 'my-bookings'>('overview');
+	const [loadingPending, setLoadingPending] = useState(false);
+	const [loadingMyBookings, setLoadingMyBookings] = useState(false);
+	const [acceptingBooking, setAcceptingBooking] = useState<string | null>(null);
+	const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
+	const [togglingAvailability, setTogglingAvailability] = useState(false);
+	const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+	const [showBookingModal, setShowBookingModal] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+	const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+	// Load user from localStorage
+	useEffect(() => {
+		const loadUser = () => {
+			try {
+				const raw = localStorage.getItem('cleanit.user');
+				if (raw) {
+					const parsed = JSON.parse(raw);
+					setUser(parsed);
+					return parsed;
+				}
+			} catch {
+				console.error('Failed to parse user');
+			}
 			return null;
+		};
+		
+		const userData = loadUser();
+		if (!userData) {
+			navigate('/login');
+			return;
 		}
-	})();
+		
+		setLoading(false);
+	}, [navigate]);
+
+	// Fetch all data when user is loaded and verified
+	useEffect(() => {
+		if (user?.id && user?.verified) {
+			fetchAllData();
+		}
+	}, [user?.id, user?.verified]);
+
+	const fetchAllData = async () => {
+		if (!user?.id) return;
+		
+		await Promise.all([
+			fetchPendingBookings(),
+			fetchMyBookings(),
+			fetchAvailability()
+		]);
+	};
+
+	const fetchPendingBookings = async () => {
+		setLoadingPending(true);
+		try {
+			const response = await api.get('/v1/technician/bookings/pending');
+			setPendingBookings(response.data);
+		} catch (err: any) {
+			console.error('Failed to fetch pending bookings:', err);
+		} finally {
+			setLoadingPending(false);
+		}
+	};
+
+	const fetchMyBookings = async () => {
+		if (!user?.id) return;
+		setLoadingMyBookings(true);
+		try {
+			const response = await api.get(`/v1/technician/${user.id}/bookings`);
+			setMyBookings(response.data);
+		} catch (err: any) {
+			console.error('Failed to fetch my bookings:', err);
+		} finally {
+			setLoadingMyBookings(false);
+		}
+	};
+
+	const fetchAvailability = async () => {
+		if (!user?.id) return;
+		try {
+			const response = await api.get(`/v1/technician/${user.id}/availability`);
+			setIsAvailable(response.data.isAvailable);
+		} catch (err: any) {
+			console.error('Failed to fetch availability:', err);
+		}
+	};
+
+	const handleAcceptBooking = async (bookingId: string) => {
+		if (!user?.id) return;
+		setAcceptingBooking(bookingId);
+		setError(null);
+		
+		try {
+			await api.post(`/v1/technician/bookings/${bookingId}/accept`, {
+				technicianId: user.id
+			});
+			
+			setSuccessMessage('Booking accepted successfully!');
+			setTimeout(() => setSuccessMessage(null), 3000);
+			
+			// Refresh data
+			await Promise.all([
+				fetchPendingBookings(),
+				fetchMyBookings()
+			]);
+		} catch (err: any) {
+			setError(err?.response?.data?.message || 'Failed to accept booking');
+			setTimeout(() => setError(null), 5000);
+		} finally {
+			setAcceptingBooking(null);
+		}
+	};
+
+	const handleUpdateStatus = async (bookingId: string, newStatus: string) => {
+		if (!user?.id) return;
+		setUpdatingStatus(bookingId);
+		setError(null);
+		
+		try {
+			await api.post(`/v1/technician/bookings/${bookingId}/status`, {
+				status: newStatus,
+				technicianId: user.id,
+				reason: `Status updated to ${newStatus}`
+			});
+			
+			setSuccessMessage(`Booking marked as ${newStatus.replace('_', ' ')}`);
+			setTimeout(() => setSuccessMessage(null), 3000);
+			
+			// Refresh data
+			await fetchMyBookings();
+		} catch (err: any) {
+			setError(err?.response?.data?.message || 'Failed to update status');
+			setTimeout(() => setError(null), 5000);
+		} finally {
+			setUpdatingStatus(null);
+		}
+	};
+
+	const handleToggleAvailability = async () => {
+		if (!user?.id) return;
+		setTogglingAvailability(true);
+		setError(null);
+		
+		try {
+			await api.post(`/v1/technician/${user.id}/availability`, {
+				isAvailable: !isAvailable
+			});
+			
+			setIsAvailable(!isAvailable);
+			setSuccessMessage(`You are now ${!isAvailable ? 'available' : 'unavailable'} for new bookings`);
+			setTimeout(() => setSuccessMessage(null), 3000);
+		} catch (err: any) {
+			setError(err?.response?.data?.message || 'Failed to update availability');
+			setTimeout(() => setError(null), 5000);
+		} finally {
+			setTogglingAvailability(false);
+		}
+	};
 
 	const handleLogout = () => {
 		localStorage.removeItem('cleanit.user');
+		localStorage.removeItem('cleanit.token');
 		navigate('/login');
 	};
 
+	const openBookingDetails = (booking: Booking) => {
+		setSelectedBooking(booking);
+		setShowBookingModal(true);
+	};
+
+	const getStatusColor = (status: string) => {
+		switch (status) {
+			case 'pending': return 'bg-orange-100 text-orange-700 border-orange-200';
+			case 'confirmed': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+			case 'in_progress': return 'bg-blue-100 text-blue-700 border-blue-200';
+			case 'completed': return 'bg-violet-100 text-violet-700 border-violet-200';
+			case 'cancelled': return 'bg-rose-100 text-rose-700 border-rose-200';
+			case 'no_show': return 'bg-gray-100 text-gray-700 border-gray-200';
+			default: return 'bg-slate-100 text-slate-700 border-slate-200';
+		}
+	};
+
+	const getStatusLabel = (status: string) => {
+		return status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+	};
+
+	const canStartService = (booking: Booking) => booking.status === 'confirmed';
+	const canCompleteService = (booking: Booking) => booking.status === 'in_progress';
+	const canMarkNoShow = (booking: Booking) => booking.status === 'confirmed';
+
+	// Get active and upcoming bookings
+	const activeBooking = myBookings.find(b => b.status === 'in_progress');
+	const upcomingBooking = myBookings.find(b => b.status === 'confirmed');
+
+	if (loading) {
+		return (
+			<div className="min-h-screen bg-slate-50 flex items-center justify-center">
+				<div className="text-violet-600">Loading...</div>
+			</div>
+		);
+	}
+
+	if (!user) return null;
+
 	return (
 		<div className="min-h-screen bg-slate-50">
-			<div className="mx-auto max-w-6xl px-4 py-10">
-				<div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
+			<div className="mx-auto max-w-7xl px-4 py-8">
+				{/* Header Section */}
+				<div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
 					<div className="flex flex-col gap-2">
 						<div className="text-xs font-semibold uppercase tracking-wider text-slate-500">Technician Dashboard</div>
 						<h1 className="text-3xl font-extrabold text-slate-900">Welcome Back, {user?.name || 'Technician'}!</h1>
 						<div className="text-sm text-slate-500">Manage your bookings and requests</div>
 					</div>
 
+					{/* Profile Card */}
 					<div className="w-full max-w-sm rounded-xl border border-violet-200 bg-white p-4 shadow-sm">
 						<div className="flex items-center gap-3">
 							<div className="flex h-11 w-11 items-center justify-center rounded-full bg-violet-700 text-sm font-bold text-white">
@@ -51,19 +306,62 @@ export default function Tdashboard() {
 								{user?.verified ? 'Verified' : 'Unverified'}
 							</div>
 						</div>
-						<div className="mt-4 flex gap-2">
+						
+						{/* Availability Toggle */}
+						{user?.verified && (
+							<div className="mt-4 flex items-center justify-between rounded-lg bg-slate-50 p-3">
+								<div className="flex items-center gap-2">
+									<Power className={`h-4 w-4 ${isAvailable ? 'text-emerald-600' : 'text-slate-400'}`} />
+									<span className="text-sm font-medium text-slate-700">
+										{isAvailable ? 'Available' : 'Unavailable'}
+									</span>
+								</div>
+								<button
+									onClick={handleToggleAvailability}
+									disabled={togglingAvailability}
+									className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+										isAvailable ? 'bg-emerald-500' : 'bg-slate-300'
+									} ${togglingAvailability ? 'opacity-60' : ''}`}
+								>
+									<span
+										className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+											isAvailable ? 'translate-x-6' : 'translate-x-1'
+										}`}
+									/>
+								</button>
+							</div>
+						)}
+						
+						<div className="mt-3 flex gap-2">
 							<button
 								onClick={handleLogout}
-								className="flex-1 rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100 transition-colors"
+								className="flex-1 rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100 transition-colors flex items-center justify-center gap-1"
 							>
+								<LogOut className="h-3 w-3" />
 								Logout
 							</button>
 						</div>
 					</div>
 				</div>
 
+				{/* Alerts */}
+				{error && (
+					<div className="mt-6 rounded-lg border border-rose-200 bg-rose-50 p-4 flex items-center gap-3">
+						<AlertCircle className="h-5 w-5 text-rose-600 flex-shrink-0" />
+						<p className="text-sm text-rose-700">{error}</p>
+					</div>
+				)}
+				
+				{successMessage && (
+					<div className="mt-6 rounded-lg border border-emerald-200 bg-emerald-50 p-4 flex items-center gap-3">
+						<CheckCircle className="h-5 w-5 text-emerald-600 flex-shrink-0" />
+						<p className="text-sm text-emerald-700">{successMessage}</p>
+					</div>
+				)}
+
+				{/* Verification Warning */}
 				{!user?.verified && (
-					<div className="mt-8 rounded-2xl border border-rose-200 bg-rose-50 p-6 shadow-sm">
+					<div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 p-6 shadow-sm">
 						<div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
 							<div className="flex gap-3">
 								<div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-rose-100 text-rose-700">!</div>
@@ -75,33 +373,473 @@ export default function Tdashboard() {
 									</div>
 								</div>
 							</div>
-
-							<div className="flex flex-col gap-2 sm:flex-row">
-							</div>
 						</div>
 					</div>
 				)}
 
-				<div className="mt-8 rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
-					<div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-2xl">🕒</div>
-					<div className="mt-4 text-sm font-semibold text-slate-700">No Active Bookings</div>
-					<div className="mt-1 text-xs text-slate-500">
-						Complete your verification to start accepting and managing bookings
+				{/* Navigation Tabs */}
+				{user?.verified && (
+					<div className="mt-8 border-b border-slate-200">
+						<div className="flex gap-1">
+							{[
+								{ id: 'overview', label: 'Overview', icon: TrendingUp },
+								{ id: 'pending', label: 'Pending Requests', icon: Briefcase },
+								{ id: 'my-bookings', label: 'My Bookings', icon: CheckCircle }
+							].map(({ id, label, icon: Icon }) => (
+								<button
+									key={id}
+									onClick={() => setActiveTab(id as any)}
+									className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+										activeTab === id
+											? 'border-violet-500 text-violet-700'
+											: 'border-transparent text-slate-500 hover:text-slate-700'
+									}`}
+								>
+									<Icon className="h-4 w-4" />
+									{label}
+									{id === 'pending' && pendingBookings.length > 0 && (
+										<span className="ml-1 rounded-full bg-violet-500 px-2 py-0.5 text-xs text-white">
+											{pendingBookings.length}
+										</span>
+									)}
+								</button>
+							))}
+						</div>
 					</div>
-				</div>
+				)}
 
-				<div className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-					<div className="text-sm font-bold text-slate-900">Pending Requests</div>
+				{/* Content Sections */}
+				{user?.verified && (
+					<div className="mt-6">
+						{/* Overview Tab */}
+						{activeTab === 'overview' && (
+							<div className="space-y-6">
+								{/* Quick Actions */}
+								<div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+									{/* Recent Pending Bookings */}
+									<div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+										<div className="flex items-center justify-between mb-4">
+											<h3 className="text-sm font-bold text-slate-900">Pending Requests</h3>
+											<button
+												onClick={() => setActiveTab('pending')}
+												className="text-xs text-violet-600 hover:text-violet-700 font-medium flex items-center gap-1"
+											>
+												View All
+												<ChevronRight className="h-3 w-3" />
+											</button>
+										</div>
+										
+										{loadingPending ? (
+											<div className="text-center py-8 text-slate-500">Loading...</div>
+										) : pendingBookings.length === 0 ? (
+											<div className="text-center py-8">
+												<div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-xl mb-3">📋</div>
+												<p className="text-sm text-slate-500">No pending requests</p>
+											</div>
+										) : (
+											<div className="space-y-3">
+												{pendingBookings.slice(0, 3).map(booking => (
+													<div key={booking.id} className="rounded-lg border border-slate-200 p-3">
+														<div className="flex items-center justify-between">
+															<div>
+																<p className="text-sm font-medium text-slate-900">{booking.serviceType}</p>
+																<p className="text-xs text-slate-500">{booking.bookingDate} • {booking.timeSlot}</p>
+															</div>
+															<button
+																onClick={() => handleAcceptBooking(booking.id)}
+																disabled={acceptingBooking === booking.id}
+																className="rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-700 disabled:opacity-60"
+															>
+																{acceptingBooking === booking.id ? 'Accepting...' : 'Accept'}
+															</button>
+														</div>
+													</div>
+												))}
+											</div>
+										)}
+									</div>
 
-					<div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-10 text-center">
-						<div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 text-2xl">📋</div>
-						<div className="mt-3 text-sm font-semibold text-slate-700">No Pending Requests</div>
-						<div className="mt-1 text-xs text-slate-500">
-							There are no service requests pending at the moment
+									{/* Active Bookings */}
+									<div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+										<div className="flex items-center justify-between mb-4">
+											<h3 className="text-sm font-bold text-slate-900">Active Bookings</h3>
+											<button
+												onClick={() => setActiveTab('my-bookings')}
+												className="text-xs text-violet-600 hover:text-violet-700 font-medium flex items-center gap-1"
+											>
+												View All
+												<ChevronRight className="h-3 w-3" />
+											</button>
+										</div>
+										
+										{loadingMyBookings ? (
+											<div className="text-center py-8 text-slate-500">Loading...</div>
+										) : myBookings.filter(b => ['confirmed', 'in_progress'].includes(b.status)).length === 0 ? (
+											<div className="text-center py-8">
+												<div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-xl mb-3">🕒</div>
+												<p className="text-sm text-slate-500">No active bookings</p>
+											</div>
+										) : (
+											<div className="space-y-3">
+												{myBookings
+													.filter(b => ['confirmed', 'in_progress'].includes(b.status))
+													.slice(0, 3)
+													.map(booking => (
+														<div key={booking.id} className="rounded-lg border border-slate-200 p-3">
+															<div className="flex items-center justify-between">
+																<div>
+																	<p className="text-sm font-medium text-slate-900">{booking.serviceType}</p>
+																	<span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getStatusColor(booking.status)}`}>
+																		{getStatusLabel(booking.status)}
+																	</span>
+																</div>
+																<button
+																	onClick={() => openBookingDetails(booking)}
+																	className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-200"
+																>
+																	View
+																</button>
+															</div>
+														</div>
+												))}
+											</div>
+										)}
+									</div>
+								</div>
+							</div>
+						)}
+
+						{/* Pending Requests Tab */}
+						{activeTab === 'pending' && (
+							<div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+								<h2 className="text-lg font-bold text-slate-900 mb-4">Pending Service Requests</h2>
+								
+								{loadingPending ? (
+									<div className="text-center py-12">
+										<div className="text-slate-500">Loading pending requests...</div>
+									</div>
+								) : pendingBookings.length === 0 ? (
+									<div className="text-center py-12">
+										<div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 text-3xl mb-4">📋</div>
+										<h3 className="text-sm font-semibold text-slate-700">No Pending Requests</h3>
+										<p className="mt-1 text-xs text-slate-500 max-w-sm mx-auto">
+											There are no service requests waiting at the moment. Check back soon!
+										</p>
+									</div>
+								) : (
+									<div className="space-y-4">
+										{pendingBookings.map(booking => (
+											<div key={booking.id} className="rounded-xl border border-slate-200 p-4 hover:shadow-md transition-shadow">
+												<div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+													<div className="flex-1">
+														<div className="flex items-center gap-2 mb-2">
+															<span className="text-xs font-mono text-slate-500">#{booking.bookingCode}</span>
+															<span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getStatusColor(booking.status)}`}>
+																Pending
+															</span>
+														</div>
+														<h3 className="text-sm font-semibold text-slate-900">{booking.serviceType}</h3>
+														<p className="text-xs text-slate-500 mt-1">Device: {booking.deviceType}</p>
+														
+														<div className="flex flex-wrap gap-3 mt-3 text-xs text-slate-500">
+															<span className="flex items-center gap-1">
+																<Calendar className="h-3 w-3" />
+																{booking.bookingDate}
+															</span>
+															<span className="flex items-center gap-1">
+																<Clock className="h-3 w-3" />
+																{booking.timeSlot}
+															</span>
+															<span className="flex items-center gap-1">
+																<MapPin className="h-3 w-3" />
+																Address hidden until accepted
+															</span>
+														</div>
+														
+														{booking.addOns && booking.addOns.length > 0 && (
+															<div className="mt-2">
+																<span className="text-xs text-slate-500">Add-ons: </span>
+																{booking.addOns.map((addon, idx) => (
+																	<span key={idx} className="text-xs text-violet-600">{addon}{idx < booking.addOns!.length - 1 ? ', ' : ''}</span>
+																))}
+															</div>
+														)}
+													</div>
+													
+													<div className="flex flex-col gap-2 sm:items-end">
+														<div className="text-lg font-bold text-violet-600">₱{booking.totalAmount.toLocaleString()}</div>
+														<button
+															onClick={() => handleAcceptBooking(booking.id)}
+															disabled={acceptingBooking === booking.id}
+															className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+														>
+															{acceptingBooking === booking.id ? (
+																<>
+																	<div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+																	Accepting...
+																</>
+															) : (
+																<>
+																	<Check className="h-4 w-4" />
+																	Accept Booking
+																</>
+															)}
+														</button>
+													</div>
+												</div>
+											</div>
+										))}
+									</div>
+								)}
+							</div>
+						)}
+
+						{/* My Bookings Tab */}
+						{activeTab === 'my-bookings' && (
+							<div className="space-y-6">
+								{/* Active Bookings */}
+								<div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+									<h2 className="text-lg font-bold text-slate-900 mb-4">Active Bookings</h2>
+									
+									{loadingMyBookings ? (
+										<div className="text-center py-8 text-slate-500">Loading...</div>
+									) : myBookings.filter(b => ['confirmed', 'in_progress'].includes(b.status)).length === 0 ? (
+										<div className="text-center py-8">
+											<div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 text-2xl mb-3">🕒</div>
+											<p className="text-sm text-slate-500">No active bookings</p>
+										</div>
+									) : (
+										<div className="space-y-4">
+											{myBookings
+												.filter(b => ['confirmed', 'in_progress'].includes(b.status))
+												.map(booking => (
+													<div key={booking.id} className="rounded-xl border border-slate-200 p-4">
+														<div className="flex flex-col gap-4">
+															<div className="flex items-start justify-between">
+																<div>
+																	<div className="flex items-center gap-2">
+																		<span className="text-xs font-mono text-slate-500">#{booking.bookingCode}</span>
+																		<span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getStatusColor(booking.status)}`}>
+																			{getStatusLabel(booking.status)}
+																		</span>
+																	</div>
+																	<h3 className="text-sm font-semibold text-slate-900 mt-1">{booking.serviceType}</h3>
+																	<p className="text-xs text-slate-500">{booking.deviceType}</p>
+																</div>
+																<div className="text-lg font-bold text-violet-600">₱{booking.totalAmount.toLocaleString()}</div>
+															</div>
+															
+															<div className="flex flex-wrap gap-2 text-xs text-slate-500">
+																<span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {booking.bookingDate}</span>
+																<span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {booking.timeSlot}</span>
+																{booking.address && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {booking.address}</span>}
+															</div>
+															
+															{/* Client Info */}
+															{booking.clientName && (
+																<div className="rounded-lg bg-slate-50 p-3">
+																	<p className="text-xs text-slate-500">Client</p>
+																	<p className="text-sm font-medium text-slate-900">{booking.clientName}</p>
+																	{booking.clientContact && <p className="text-xs text-slate-500">{booking.clientContact}</p>}
+																</div>
+															)}
+															
+															{/* Action Buttons */}
+															<div className="flex flex-wrap gap-2">
+																{canStartService(booking) && (
+																	<button
+																		onClick={() => handleUpdateStatus(booking.id, 'in_progress')}
+																		disabled={updatingStatus === booking.id}
+																		className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-60 flex items-center gap-1"
+																	>
+																		{updatingStatus === booking.id ? 'Updating...' : 'Start Service'}
+																	</button>
+																)}
+																{canCompleteService(booking) && (
+																	<button
+																		onClick={() => handleUpdateStatus(booking.id, 'completed')}
+																		disabled={updatingStatus === booking.id}
+																		className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60 flex items-center gap-1"
+																	>
+																		{updatingStatus === booking.id ? 'Updating...' : 'Mark Complete'}
+																	</button>
+																)}
+																{canMarkNoShow(booking) && (
+																	<button
+																		onClick={() => handleUpdateStatus(booking.id, 'no_show')}
+																		disabled={updatingStatus === booking.id}
+																		className="rounded-lg bg-gray-500 px-3 py-2 text-xs font-semibold text-white hover:bg-gray-600 disabled:opacity-60"
+																	>
+																		{updatingStatus === booking.id ? 'Updating...' : 'No Show'}
+																	</button>
+																)}
+																<button
+																	onClick={() => openBookingDetails(booking)}
+																	className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-200 flex items-center gap-1"
+																>
+																	<Eye className="h-3 w-3" />
+																	View Details
+																</button>
+															</div>
+														</div>
+													</div>
+												))}
+										</div>
+									)}
+								</div>
+
+								{/* Booking History */}
+								<div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+									<h2 className="text-lg font-bold text-slate-900 mb-4">Booking History</h2>
+									
+									{loadingMyBookings ? (
+										<div className="text-center py-8 text-slate-500">Loading...</div>
+									) : myBookings.filter(b => ['completed', 'cancelled', 'no_show'].includes(b.status)).length === 0 ? (
+										<div className="text-center py-8">
+											<div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 text-2xl mb-3">📅</div>
+											<p className="text-sm text-slate-500">No booking history</p>
+										</div>
+									) : (
+										<div className="space-y-3">
+											{myBookings
+												.filter(b => ['completed', 'cancelled', 'no_show'].includes(b.status))
+												.map(booking => (
+													<div key={booking.id} className="rounded-lg border border-slate-200 p-4 opacity-75">
+														<div className="flex items-center justify-between">
+															<div>
+																<div className="flex items-center gap-2">
+																	<span className="text-xs font-mono text-slate-500">#{booking.bookingCode}</span>
+																	<span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getStatusColor(booking.status)}`}>
+																		{getStatusLabel(booking.status)}
+																	</span>
+																</div>
+																<h3 className="text-sm font-semibold text-slate-900 mt-1">{booking.serviceType}</h3>
+																<p className="text-xs text-slate-500">{booking.bookingDate}</p>
+															</div>
+															<div className="text-right">
+																<div className="text-sm font-bold text-slate-900">₱{booking.totalAmount.toLocaleString()}</div>
+																<button
+																		onClick={() => openBookingDetails(booking)}
+																		className="mt-1 text-xs text-violet-600 hover:text-violet-700"
+																	>
+																		View Details
+																	</button>
+															</div>
+														</div>
+													</div>
+												))}
+										</div>
+									)}
+								</div>
+							</div>
+						)}
+					</div>
+				)}
+			</div>
+
+			{/* Booking Details Modal */}
+			{showBookingModal && selectedBooking && (
+				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+					<div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
+						<div className="mb-4 flex items-center justify-between">
+							<h3 className="text-lg font-bold text-slate-900">Booking Details</h3>
+							<button
+								onClick={() => setShowBookingModal(false)}
+								className="rounded-full p-1 hover:bg-slate-100"
+							>
+								<X className="h-5 w-5 text-slate-500" />
+							</button>
+						</div>
+						
+						<div className="space-y-4">
+							<div className="rounded-lg bg-violet-50 p-3">
+								<div className="text-xs text-slate-500">Booking Code</div>
+								<div className="font-mono font-semibold text-slate-900">#{selectedBooking.bookingCode}</div>
+							</div>
+							
+							<div className="grid grid-cols-2 gap-3">
+								<div className="rounded-lg bg-slate-50 p-3">
+									<div className="text-xs text-slate-500">Service</div>
+									<div className="font-semibold text-slate-900">{selectedBooking.serviceType}</div>
+								</div>
+								<div className="rounded-lg bg-slate-50 p-3">
+									<div className="text-xs text-slate-500">Device</div>
+									<div className="font-semibold text-slate-900 capitalize">{selectedBooking.deviceType}</div>
+								</div>
+							</div>
+							
+							<div className="flex items-center gap-2">
+								<span className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-medium ${getStatusColor(selectedBooking.status)}`}>
+									{getStatusLabel(selectedBooking.status)}
+								</span>
+							</div>
+							
+							<div className="grid grid-cols-2 gap-3 text-sm">
+								<div className="rounded-lg bg-slate-50 p-3">
+									<div className="text-xs text-slate-500">Date</div>
+									<div className="font-medium text-slate-900">{selectedBooking.bookingDate}</div>
+								</div>
+								<div className="rounded-lg bg-slate-50 p-3">
+									<div className="text-xs text-slate-500">Time</div>
+									<div className="font-medium text-slate-900">{selectedBooking.timeSlot}</div>
+								</div>
+							</div>
+							
+							{selectedBooking.address && (
+								<div className="rounded-lg bg-slate-50 p-3">
+									<div className="text-xs text-slate-500">Address</div>
+									<div className="font-medium text-slate-900">{selectedBooking.address}</div>
+									{selectedBooking.landmark && (
+										<div className="text-xs text-slate-500 mt-1">Landmark: {selectedBooking.landmark}</div>
+									)}
+								</div>
+							)}
+							
+							{selectedBooking.clientName && (
+								<div className="rounded-lg bg-slate-50 p-3">
+									<div className="text-xs text-slate-500">Client</div>
+									<div className="font-semibold text-slate-900">{selectedBooking.clientName}</div>
+									{selectedBooking.clientContact && (
+										<div className="text-xs text-slate-500">{selectedBooking.clientContact}</div>
+									)}
+								</div>
+							)}
+							
+							{selectedBooking.addOns && selectedBooking.addOns.length > 0 && (
+								<div>
+									<div className="text-xs text-slate-500 mb-1">Add-ons</div>
+									<div className="flex flex-wrap gap-1">
+										{selectedBooking.addOns.map((addon, idx) => (
+											<span key={idx} className="rounded-full bg-violet-100 px-2 py-0.5 text-xs text-violet-700">
+												{addon}
+											</span>
+										))}
+									</div>
+								</div>
+							)}
+							
+							{selectedBooking.specialInstructions && (
+								<div className="rounded-lg bg-amber-50 p-3">
+									<div className="text-xs text-slate-500">Special Instructions</div>
+									<div className="text-sm text-slate-700">{selectedBooking.specialInstructions}</div>
+								</div>
+							)}
+							
+							<div className="rounded-lg bg-violet-50 p-3">
+								<div className="text-xs text-slate-500">Total Amount</div>
+								<div className="text-xl font-bold text-violet-700">₱{selectedBooking.totalAmount.toLocaleString()}</div>
+							</div>
+							
+							<button
+								onClick={() => setShowBookingModal(false)}
+								className="w-full rounded-lg bg-violet-600 py-2 text-sm font-semibold text-white hover:bg-violet-700"
+				>
+					Close
+				</button>
 						</div>
 					</div>
 				</div>
-			</div>
+			)}
 		</div>
 	);
 }
