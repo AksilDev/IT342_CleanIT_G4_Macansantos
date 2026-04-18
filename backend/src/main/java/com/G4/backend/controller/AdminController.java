@@ -1,5 +1,7 @@
 package com.G4.backend.controller;
 
+import com.G4.backend.entity.User;
+import com.G4.backend.repository.UserRepository;
 import com.G4.backend.service.BookingService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -12,9 +14,11 @@ import java.util.*;
 public class AdminController {
 
     private final BookingService bookingService;
+    private final UserRepository userRepository;
 
-    public AdminController(BookingService bookingService) {
+    public AdminController(BookingService bookingService, UserRepository userRepository) {
         this.bookingService = bookingService;
+        this.userRepository = userRepository;
     }
 
     /**
@@ -149,6 +153,86 @@ public class AdminController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of(
                 "error", "Failed to fetch dashboard overview",
+                "message", e.getMessage()
+            ));
+        }
+    }
+
+    /**
+     * Get users pending verification (unverified users)
+     */
+    @GetMapping("/pending-verifications")
+    public ResponseEntity<?> getPendingVerifications() {
+        try {
+            List<String> roles = Arrays.asList("client", "technician");
+            List<User> unverifiedUsers = userRepository.findPendingVerifications(roles);
+            
+            List<Map<String, Object>> response = new ArrayList<>();
+            for (User user : unverifiedUsers) {
+                Map<String, Object> userMap = new HashMap<>();
+                userMap.put("id", user.getId());
+                userMap.put("name", user.getName());
+                userMap.put("email", user.getEmail());
+                userMap.put("contactNo", user.getContactNo());
+                userMap.put("role", user.getRole());
+                userMap.put("imageUrl", user.getImageUrl());
+                userMap.put("createdAt", user.getCreatedAt());
+                userMap.put("verified", user.getVerified());
+                response.add(userMap);
+            }
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "error", "Failed to fetch pending verifications",
+                "message", e.getMessage()
+            ));
+        }
+    }
+
+    /**
+     * Verify or reject a user
+     */
+    @PostMapping("/verify-user/{userId}")
+    public ResponseEntity<?> verifyUser(
+            @PathVariable UUID userId,
+            @RequestBody Map<String, String> request) {
+        try {
+            String status = request.get("status");
+            Optional<User> optionalUser = userRepository.findById(userId);
+            
+            if (optionalUser.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of(
+                    "error", "User not found"
+                ));
+            }
+            
+            User user = optionalUser.get();
+            
+            if ("approved".equalsIgnoreCase(status)) {
+                user.setVerified(true);
+                userRepository.save(user);
+                return ResponseEntity.ok(Map.of(
+                    "message", "User approved successfully",
+                    "userId", userId,
+                    "status", "approved"
+                ));
+            } else if ("rejected".equalsIgnoreCase(status)) {
+                // Delete the user if rejected
+                userRepository.delete(user);
+                return ResponseEntity.ok(Map.of(
+                    "message", "User rejected and removed",
+                    "userId", userId,
+                    "status", "rejected"
+                ));
+            } else {
+                return ResponseEntity.badRequest().body(Map.of(
+                    "error", "Invalid status. Use 'approved' or 'rejected'"
+                ));
+            }
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "error", "Failed to verify user",
                 "message", e.getMessage()
             ));
         }

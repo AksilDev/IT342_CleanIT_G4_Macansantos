@@ -37,7 +37,7 @@ public class DataInitializer {
                 System.out.println("Email: " + adminConfig.getAdminEmail());
                 System.out.println("Password: " + adminConfig.getAdminPassword());
             } else {
-                System.out.println("Super admin account already exists with email: " + adminConfig.getAdminEmail());
+                System.out.println("Super admin account already exists with email: " + adminConfig.getAdminEmail() + "  Pass:" + adminConfig.getAdminPassword());
             }
         };
     }

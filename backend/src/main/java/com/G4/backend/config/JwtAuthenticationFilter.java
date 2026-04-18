@@ -36,6 +36,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             FilterChain filterChain) throws ServletException, IOException {
 
         final String authHeader = request.getHeader("Authorization");
+        final String requestURI = request.getRequestURI();
+        
+        System.out.println("DEBUG: Request URI: " + requestURI + " | Auth Header present: " + (authHeader != null));
 
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             try {
@@ -49,21 +52,33 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         User user = optionalUser.get();
 
                         if (jwtService.isTokenValid(jwt, user.getEmail())) {
+                            String authority = "ROLE_" + user.getRole();
+                            System.out.println("DEBUG: Setting authority for user " + user.getEmail() + " with role: " + user.getRole() + " -> authority: " + authority);
+                            
                             UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                                     user,
                                     null,
-                                    List.of(new SimpleGrantedAuthority(user.getRole())));
+                                    List.of(new SimpleGrantedAuthority(authority)));
 
                             authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                             SecurityContextHolder.getContext().setAuthentication(authToken);
+                            
+                            System.out.println("DEBUG: Authentication set successfully. Authorities: " + authToken.getAuthorities());
+                        } else {
+                            System.out.println("DEBUG: Token validation failed for email: " + email);
                         }
+                    } else {
+                        System.out.println("DEBUG: User not found for email: " + email);
                     }
                 }
             } catch (JwtException e) {
+                System.out.println("DEBUG: JWT Exception: " + e.getMessage());
                 // If token is expired or invalid, we simply don't set the authentication
                 // context.
                 // This allows public endpoints to still be accessible.
             }
+        } else {
+            System.out.println("DEBUG: No Bearer token found in Authorization header");
         }
 
         filterChain.doFilter(request, response);

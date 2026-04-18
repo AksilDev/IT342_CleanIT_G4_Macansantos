@@ -4,6 +4,7 @@ import com.G4.backend.entity.Booking;
 import com.G4.backend.entity.User;
 import com.G4.backend.enums.BookingStatus;
 import com.G4.backend.repository.BookingRepository;
+import com.G4.backend.repository.TechnicianSettingsRepository;
 import com.G4.backend.repository.UserRepository;
 import com.G4.backend.service.BookingService;
 import com.G4.backend.service.BookingNotificationService;
@@ -31,6 +32,7 @@ public class BookingWorkflowTest {
     private BookingService bookingService;
     private BookingRepository bookingRepository;
     private UserRepository userRepository;
+    private TechnicianSettingsRepository technicianSettingsRepository;
     private BookingNotificationService notificationService;
 
     private User mockClient;
@@ -42,9 +44,10 @@ public class BookingWorkflowTest {
         // Mock repositories and services
         bookingRepository = mock(BookingRepository.class);
         userRepository = mock(UserRepository.class);
+        technicianSettingsRepository = mock(TechnicianSettingsRepository.class);
         notificationService = mock(BookingNotificationService.class);
         
-        bookingService = new BookingService(bookingRepository, userRepository, notificationService);
+        bookingService = new BookingService(bookingRepository, userRepository, technicianSettingsRepository, notificationService);
 
         // Create mock users
         mockClient = createMockUser("client", true);
@@ -69,34 +72,23 @@ public class BookingWorkflowTest {
         
         assertNotNull(createdBooking);
         assertEquals(BookingStatus.PENDING, createdBooking.getStatus());
-        verify(notificationService).notifyAdminNewBooking(any(Booking.class));
+        verify(notificationService).notifyTechniciansNewBooking(any(Booking.class));
 
-        // 2. Technician accepts the booking
+        // 2. Technician accepts the booking (PENDING -> CONFIRMED)
         when(bookingRepository.findById(mockBooking.getId())).thenReturn(java.util.Optional.of(mockBooking));
+        mockBooking.setStatus(BookingStatus.PENDING);
         
-        Booking confirmedBooking = bookingService.updateBookingStatus(
+        Booking acceptedBooking = bookingService.updateBookingStatus(
             mockBooking.getId(), 
             BookingStatus.CONFIRMED, 
             mockTechnician.getId(), 
             "Technician accepted the booking"
         );
         
-        assertEquals(BookingStatus.CONFIRMED, confirmedBooking.getStatus());
+        assertEquals(BookingStatus.CONFIRMED, acceptedBooking.getStatus());
+        assertNotNull(acceptedBooking.getConfirmedAt());
 
-        // 3. Technician starts the service
-        mockBooking.setStatus(BookingStatus.CONFIRMED);
-        
-        Booking confirmedBooking = bookingService.updateBookingStatus(
-            mockBooking.getId(), 
-            BookingStatus.CONFIRMED, 
-            mockTechnician.getId(), 
-            "Confirmed availability"
-        );
-        
-        assertEquals(BookingStatus.CONFIRMED, confirmedBooking.getStatus());
-        assertNotNull(confirmedBooking.getConfirmedAt());
-
-        // 4. Technician starts the service
+        // 3. Technician starts the service (CONFIRMED -> IN_PROGRESS)
         mockBooking.setStatus(BookingStatus.CONFIRMED);
         
         Booking inProgressBooking = bookingService.updateBookingStatus(
@@ -107,8 +99,9 @@ public class BookingWorkflowTest {
         );
         
         assertEquals(BookingStatus.IN_PROGRESS, inProgressBooking.getStatus());
+        assertNotNull(inProgressBooking.getStartedAt());
 
-        // 5. Technician completes the service
+        // 4. Technician completes the service (IN_PROGRESS -> COMPLETED)
         mockBooking.setStatus(BookingStatus.IN_PROGRESS);
         
         Booking completedBooking = bookingService.updateBookingStatus(
@@ -121,68 +114,65 @@ public class BookingWorkflowTest {
         assertEquals(BookingStatus.COMPLETED, completedBooking.getStatus());
         assertNotNull(completedBooking.getCompletedAt());
 
-        // Verify notifications were sent for each status change
-        verify(notificationService, times(4)).notifyStatusChange(
+        // Verify notifications were sent for each status change (3 status updates)
+        verify(notificationService, times(3)).notifyStatusChange(
             any(Booking.class), 
-            any(BookingStatus.class), 
             any(BookingStatus.class), 
             anyString()
         );
     }
 
     @Test
-    void testBookingRejectionWorkflow() {
+    void testBookingCancellationWorkflow() {
         Booking mockBooking = createMockBooking();
         mockBooking.setStatus(BookingStatus.PENDING);
         
         when(bookingRepository.findById(mockBooking.getId())).thenReturn(java.util.Optional.of(mockBooking));
+        when(bookingRepository.save(any(Booking.class))).thenReturn(mockBooking);
         
-        // Admin rejects the booking
-        Booking rejectedBooking = bookingService.updateBookingStatus(
+        // Client cancels pending booking
+        Booking cancelledBooking = bookingService.cancelBooking(
             mockBooking.getId(), 
-            BookingStatus.REJECTED, 
-            mockAdmin.getId(), 
-            "Technician not available on requested date"
+            mockClient.getId(), 
+            "Client changed their mind"
         );
         
-        assertEquals(BookingStatus.REJECTED, rejectedBooking.getStatus());
-        assertEquals("Technician not available on requested date", rejectedBooking.getStatusReason());
+        assertEquals(BookingStatus.CANCELLED, cancelledBooking.getStatus());
+        assertEquals("Client changed their mind", cancelledBooking.getStatusReason());
+        assertNotNull(cancelledBooking.getCancelledAt());
         
         verify(notificationService).notifyStatusChange(
             any(Booking.class), 
-            eq(BookingStatus.PENDING), 
-            eq(BookingStatus.REJECTED), 
-            eq("Technician not available on requested date")
+            eq(BookingStatus.CANCELLED), 
+            eq("Client changed their mind")
         );
     }
 
     @Test
-    void testBookingRescheduleWorkflow() {
+    void testNoShowWorkflow() {
         Booking mockBooking = createMockBooking();
         mockBooking.setStatus(BookingStatus.CONFIRMED);
+        mockBooking.setTechnicianId(mockTechnician.getId());
         
         when(bookingRepository.findById(mockBooking.getId())).thenReturn(java.util.Optional.of(mockBooking));
         when(bookingRepository.save(any(Booking.class))).thenReturn(mockBooking);
         
-        LocalDate newDate = LocalDate.now().plusDays(7);
-        String newTimeSlot = "2:00 PM - 4:00 PM";
-        
-        Booking rescheduledBooking = bookingService.rescheduleBooking(
+        // Technician marks as no-show
+        Booking noShowBooking = bookingService.updateBookingStatus(
             mockBooking.getId(), 
-            newDate, 
-            newTimeSlot, 
-            mockClient.getId()
+            BookingStatus.NO_SHOW, 
+            mockTechnician.getId(), 
+            "Client was not available at scheduled time"
         );
         
-        assertEquals(BookingStatus.RESCHEDULED, rescheduledBooking.getStatus());
-        assertEquals(newDate, rescheduledBooking.getBookingDate());
-        assertEquals(newTimeSlot, rescheduledBooking.getTimeSlot());
+        assertEquals(BookingStatus.NO_SHOW, noShowBooking.getStatus());
+        assertEquals("Client was not available at scheduled time", noShowBooking.getStatusReason());
+        assertNotNull(noShowBooking.getNoShowAt());
         
         verify(notificationService).notifyStatusChange(
             any(Booking.class), 
-            eq(BookingStatus.CONFIRMED), 
-            eq(BookingStatus.RESCHEDULED), 
-            contains("Rescheduled to")
+            eq(BookingStatus.NO_SHOW), 
+            eq("Client was not available at scheduled time")
         );
     }
 
@@ -211,13 +201,13 @@ public class BookingWorkflowTest {
         
         when(bookingRepository.findById(mockBooking.getId())).thenReturn(java.util.Optional.of(mockBooking));
         
-        // Try to approve booking as client (should fail)
+        // Try to confirm booking as client (should fail - only technicians can confirm)
         assertThrows(RuntimeException.class, () -> {
             bookingService.updateBookingStatus(
                 mockBooking.getId(), 
-                BookingStatus.APPROVED, 
+                BookingStatus.CONFIRMED, 
                 mockClient.getId(), 
-                "Unauthorized approval"
+                "Unauthorized confirmation"
             );
         });
     }
