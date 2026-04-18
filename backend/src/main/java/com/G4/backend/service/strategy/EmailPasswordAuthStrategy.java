@@ -31,10 +31,10 @@ public class EmailPasswordAuthStrategy implements AuthenticationStrategy {
     @Override
     public LoginResponse authenticate(LoginRequest request) {
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new RuntimeException("No account found with this email. Please check your email or register a new account."));
         
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
-            throw new RuntimeException("Invalid password");
+            throw new RuntimeException("Incorrect password. Please try again or reset your password.");
         }
         
         String token = jwtService.generateToken(user.getEmail(), user.getRole());

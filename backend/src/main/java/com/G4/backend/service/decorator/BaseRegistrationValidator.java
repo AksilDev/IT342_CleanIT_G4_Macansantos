@@ -19,7 +19,7 @@ public class BaseRegistrationValidator implements RegistrationValidator {
     public void validate(String email, String password, String role) {
         // Check for duplicate email
         if (userRepository.existsByEmail(email)) {
-            throw new RuntimeException("Email already exists");
+            throw new RuntimeException("This email is already registered. Please use a different email or try logging in instead.");
         }
     }
 }

@@ -19,13 +19,13 @@ public class EmailValidationDecorator extends ValidatorDecorator {
         
         // Then add email format validation
         if (email == null || email.trim().isEmpty()) {
-            throw new RuntimeException("Email is required");
+            throw new RuntimeException("Email address is required. Please enter your email.");
         }
         
         // Simple email validation regex
         String emailRegex = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$";
         if (!email.matches(emailRegex)) {
-            throw new RuntimeException("Invalid email format");
+            throw new RuntimeException("Please enter a valid email address (e.g., name@example.com).");
         }
     }
 }

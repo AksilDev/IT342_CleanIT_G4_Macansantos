@@ -62,6 +62,15 @@ public class AuthService {
     }
 
     public String register(RegisterRequest request) {
+        // Validate required fields
+        if (request.getName() == null || request.getName().trim().isEmpty()) {
+            throw new RuntimeException("Name is required. Please enter your full name.");
+        }
+        
+        if (request.getContactNo() == null || request.getContactNo().trim().isEmpty()) {
+            throw new RuntimeException("Contact number is required. Please enter your phone number.");
+        }
+        
         // DECORATOR PATTERN: Use validation chain
         registrationValidator.validate(
             request.getEmail(),
@@ -70,7 +79,7 @@ public class AuthService {
         );
 
         if (!request.getRole().equals("client") && !request.getRole().equals("technician")) {
-            throw new RuntimeException("Invalid role");
+            throw new RuntimeException("Invalid role selected. Please choose either 'client' or 'technician'.");
         }
 
         // FACTORY PATTERN: Clean single-line construction
@@ -87,7 +96,7 @@ public class AuthService {
         // OBSERVER PATTERN: Notify observers of user registration
         eventPublisher.publishUserRegistered(user);
 
-        return "User registered successfully";
+        return "Registration successful! Welcome to CleanIT. Please log in with your email and password.";
     }
 
     public LoginResponse login(LoginRequest request) {
@@ -106,13 +115,13 @@ public class AuthService {
 
             return "http://localhost:8080/uploads/" + filename;
         } catch (IOException e) {
-            throw new RuntimeException("Failed to upload image: " + e.getMessage());
+            throw new RuntimeException("Failed to upload your ID image. Please try again with a smaller file (max 5MB) or different format (JPG/PNG).");
         }
     }
 
     public LoginResponse completeOAuthProfile(OAuthCompleteRequest request) {
         if (!request.getRole().equals("client") && !request.getRole().equals("technician")) {
-            throw new RuntimeException("Invalid role");
+            throw new RuntimeException("Invalid role selected. Please choose either 'client' or 'technician'.");
         }
 
         User user = userRepository.findByEmail(request.getEmail())

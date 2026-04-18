@@ -21,21 +21,21 @@ public class PasswordValidationDecorator extends ValidatorDecorator {
         
         // Then add password strength validation
         if (password == null || password.isEmpty()) {
-            throw new RuntimeException("Password is required");
+            throw new RuntimeException("Password is required. Please create a password.");
         }
         
         if (password.length() < MIN_PASSWORD_LENGTH) {
-            throw new RuntimeException("Password must be at least " + MIN_PASSWORD_LENGTH + " characters long");
+            throw new RuntimeException("Password must be at least " + MIN_PASSWORD_LENGTH + " characters long.");
         }
         
         // Check for at least one uppercase letter
         if (!password.matches(".*[A-Z].*")) {
-            throw new RuntimeException("Password must contain at least one uppercase letter");
+            throw new RuntimeException("Password must contain at least one uppercase letter (A-Z).");
         }
         
         // Check for at least one number
         if (!password.matches(".*\\d.*")) {
-            throw new RuntimeException("Password must contain at least one number");
+            throw new RuntimeException("Password must contain at least one number (0-9).");
         }
     }
 }
