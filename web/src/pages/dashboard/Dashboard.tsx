@@ -31,47 +31,20 @@ interface Booking {
 interface Service {
 	id: string;
 	name: string;
-	price: string;
-	time: string;
 	description: string;
+	durationMinutes: number;
+	basePrice: number;
+	isActive: boolean;
 }
 
-const services: Service[] = [
-	{
-		id: 'external',
-		name: 'Standard External Cleaning',
-		price: '₱200',
-		time: '1-2 hours',
-		description: 'Complete external cleaning service'
-	},
-	{
-		id: 'internal',
-		name: 'Deep Internal Cleaning',
-		price: '₱1,250',
-		time: '2-3 hours',
-		description: 'Thorough internal component cleaning'
-	},
-	{
-		id: 'gpu',
-		name: 'GPU Deep Cleaning',
-		price: '₱600',
-		time: '1.5-2 hours',
-		description: 'Specialized GPU maintenance'
-	},
-	{
-		id: 'psu',
-		name: 'PSU Cleaning',
-		price: '₱450',
-		time: '30mins - 1 hour',
-		description: 'Power supply cleaning'
-	},
-];
+
 
 export default function Dashboard() {
 	const navigate = useNavigate();
 	const [searchParams] = useSearchParams();
 	const [user, setUser] = useState<any>(null);
 	const [loading, setLoading] = useState(true);
+	const [services, setServices] = useState<Service[]>([]);
 	const [bookings, setBookings] = useState<Booking[]>([]);
 	const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
 	const [showBookingModal, setShowBookingModal] = useState(false);
@@ -144,6 +117,22 @@ export default function Dashboard() {
 		
 		fetchUserProfile();
 	}, [navigate]);
+
+	// Fetch services from API
+	useEffect(() => {
+		const fetchServices = async () => {
+			try {
+				const response = await api.get('/v1/services');
+				setServices(response.data);
+			} catch (err) {
+				console.error('Failed to fetch services', err);
+				// Fallback to empty array
+				setServices([]);
+			}
+		};
+		
+		fetchServices();
+	}, []);
 
 	if (loading) {
 		return (
@@ -414,8 +403,8 @@ export default function Dashboard() {
 										<div className="text-sm font-bold text-slate-900">{service.name}</div>
 										<div className="mt-1 text-xs text-slate-500">{service.description}</div>
 										<div className="mt-3 flex items-center justify-between">
-											<div className="text-xs text-slate-500">🕒 {service.time}</div>
-											<div className="text-sm font-bold text-violet-700">{service.price}</div>
+											<div className="text-xs text-slate-500">🕒 {service.durationMinutes} mins</div>
+											<div className="text-sm font-bold text-violet-700">₱{service.basePrice}</div>
 										</div>
 										<button 
 											className={`mt-3 w-full rounded-lg py-2 text-xs font-semibold transition-colors ${

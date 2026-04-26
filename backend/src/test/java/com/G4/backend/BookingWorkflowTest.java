@@ -3,9 +3,7 @@ package com.G4.backend;
 import com.G4.backend.entity.Booking;
 import com.G4.backend.entity.User;
 import com.G4.backend.enums.BookingStatus;
-import com.G4.backend.repository.BookingRepository;
-import com.G4.backend.repository.TechnicianSettingsRepository;
-import com.G4.backend.repository.UserRepository;
+import com.G4.backend.repository.*;
 import com.G4.backend.service.BookingService;
 import com.G4.backend.service.BookingNotificationService;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,6 +32,13 @@ public class BookingWorkflowTest {
     private UserRepository userRepository;
     private TechnicianSettingsRepository technicianSettingsRepository;
     private BookingNotificationService notificationService;
+    private ServiceRepository serviceRepository;
+    private AddOnRepository addOnRepository;
+    private ServiceAllowedAddonRepository serviceAllowedAddonRepository;
+    private ChecklistItemRepository checklistItemRepository;
+    private BookingAddonRepository bookingAddonRepository;
+    private BookingChecklistRepository bookingChecklistRepository;
+    private BookingPhotoRepository bookingPhotoRepository;
 
     private User mockClient;
     private User mockTechnician;
@@ -46,8 +51,27 @@ public class BookingWorkflowTest {
         userRepository = mock(UserRepository.class);
         technicianSettingsRepository = mock(TechnicianSettingsRepository.class);
         notificationService = mock(BookingNotificationService.class);
+        serviceRepository = mock(ServiceRepository.class);
+        addOnRepository = mock(AddOnRepository.class);
+        serviceAllowedAddonRepository = mock(ServiceAllowedAddonRepository.class);
+        checklistItemRepository = mock(ChecklistItemRepository.class);
+        bookingAddonRepository = mock(BookingAddonRepository.class);
+        bookingChecklistRepository = mock(BookingChecklistRepository.class);
+        bookingPhotoRepository = mock(BookingPhotoRepository.class);
         
-        bookingService = new BookingService(bookingRepository, userRepository, technicianSettingsRepository, notificationService);
+        bookingService = new BookingService(
+            bookingRepository, 
+            userRepository, 
+            technicianSettingsRepository, 
+            notificationService,
+            serviceRepository,
+            addOnRepository,
+            serviceAllowedAddonRepository,
+            checklistItemRepository,
+            bookingAddonRepository,
+            bookingChecklistRepository,
+            bookingPhotoRepository
+        );
 
         // Create mock users
         mockClient = createMockUser("client", true);
@@ -58,6 +82,13 @@ public class BookingWorkflowTest {
         when(userRepository.findById(mockClient.getId())).thenReturn(java.util.Optional.of(mockClient));
         when(userRepository.findById(mockTechnician.getId())).thenReturn(java.util.Optional.of(mockTechnician));
         when(userRepository.findById(mockAdmin.getId())).thenReturn(java.util.Optional.of(mockAdmin));
+        
+        // Mock checklist repository for validation
+        when(bookingChecklistRepository.countTotalByBookingId(any())).thenReturn(10L);
+        when(bookingChecklistRepository.countCheckedByBookingId(any())).thenReturn(10L);
+        
+        // Mock photo repository for validation
+        when(bookingPhotoRepository.countByBookingIdAndType(any(), any())).thenReturn(2L);
     }
 
     @Test

@@ -3,8 +3,10 @@ package com.G4.backend.controller;
 import com.G4.backend.entity.Booking;
 import com.G4.backend.entity.TechnicianSettings;
 import com.G4.backend.service.BookingService;
+import com.G4.backend.service.SupabaseStorageService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.*;
 
@@ -14,9 +16,11 @@ import java.util.*;
 public class TechnicianBookingController {
 
     private final BookingService bookingService;
+    private final SupabaseStorageService storageService;
 
-    public TechnicianBookingController(BookingService bookingService) {
+    public TechnicianBookingController(BookingService bookingService, SupabaseStorageService storageService) {
         this.bookingService = bookingService;
+        this.storageService = storageService;
     }
 
     /**
@@ -211,6 +215,137 @@ public class TechnicianBookingController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of(
                 "error", "Failed to fetch technician statistics",
+                "message", e.getMessage()
+            ));
+        }
+    }
+
+    /**
+     * Get booking checklist
+     */
+    @GetMapping("/bookings/{bookingId}/checklist")
+    public ResponseEntity<?> getBookingChecklist(@PathVariable UUID bookingId) {
+        try {
+            List<Map<String, Object>> checklist = bookingService.getBookingChecklist(bookingId);
+            return ResponseEntity.ok(checklist);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "error", "Failed to fetch checklist",
+                "message", e.getMessage()
+            ));
+        }
+    }
+
+    /**
+     * Toggle checklist item
+     */
+    @PostMapping("/bookings/{bookingId}/checklist/{checklistItemId}")
+    public ResponseEntity<?> toggleChecklistItem(
+            @PathVariable UUID bookingId,
+            @PathVariable UUID checklistItemId,
+            @RequestBody Map<String, String> request) {
+        try {
+            UUID technicianId = UUID.fromString(request.get("technicianId"));
+            var updatedItem = bookingService.toggleChecklistItem(bookingId, checklistItemId, technicianId);
+            
+            return ResponseEntity.ok(Map.of(
+                "message", "Checklist item updated",
+                "isChecked", updatedItem.getIsChecked(),
+                "checkedAt", updatedItem.getCheckedAt()
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "error", "Failed to update checklist item",
+                "message", e.getMessage()
+            ));
+        }
+    }
+
+    /**
+     * Get booking photos
+     */
+    @GetMapping("/bookings/{bookingId}/photos")
+    public ResponseEntity<?> getBookingPhotos(@PathVariable UUID bookingId) {
+        try {
+            List<Map<String, Object>> photos = bookingService.getBookingPhotos(bookingId);
+            return ResponseEntity.ok(photos);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "error", "Failed to fetch photos",
+                "message", e.getMessage()
+            ));
+        }
+    }
+
+    /**
+     * Validate checklist completion
+     */
+    @GetMapping("/bookings/{bookingId}/validate-checklist")
+    public ResponseEntity<?> validateChecklist(@PathVariable UUID bookingId) {
+        try {
+            Map<String, Object> validation = bookingService.validateChecklistComplete(bookingId);
+            return ResponseEntity.ok(validation);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "error", "Failed to validate checklist",
+                "message", e.getMessage()
+            ));
+        }
+    }
+
+    /**
+     * Validate photo uploads
+     */
+    @GetMapping("/bookings/{bookingId}/validate-photos")
+    public ResponseEntity<?> validatePhotos(@PathVariable UUID bookingId) {
+        try {
+            Map<String, Object> validation = bookingService.validatePhotosUploaded(bookingId);
+            return ResponseEntity.ok(validation);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "error", "Failed to validate photos",
+                "message", e.getMessage()
+            ));
+        }
+    }
+
+    /**
+     * Upload photo for booking (Before/After service)
+     */
+    @PostMapping("/bookings/{bookingId}/photos")
+    public ResponseEntity<?> uploadPhoto(
+            @PathVariable UUID bookingId,
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("type") String type,
+            @RequestParam("technicianId") String technicianId) {
+        try {
+            // Validate file
+            if (file.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of(
+                    "error", "File is required"
+                ));
+            }
+
+            // Validate type
+            if (!type.equals("BEFORE") && !type.equals("AFTER")) {
+                return ResponseEntity.badRequest().body(Map.of(
+                    "error", "Photo type must be BEFORE or AFTER"
+                ));
+            }
+
+            // Upload to Supabase
+            String fileUrl = storageService.uploadFile(file, technicianId);
+
+            // Save photo record
+            bookingService.addBookingPhoto(bookingId, type, fileUrl, UUID.fromString(technicianId));
+
+            return ResponseEntity.ok(Map.of(
+                "message", "Photo uploaded successfully",
+                "fileUrl", fileUrl
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "error", "Failed to upload photo",
                 "message", e.getMessage()
             ));
         }

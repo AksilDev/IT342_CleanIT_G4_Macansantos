@@ -14,7 +14,11 @@ import {
 	Eye,
 	X,
 	ChevronRight,
-	Check
+	Check,
+	Camera,
+	Upload,
+	ImageIcon,
+	ListChecks
 } from 'lucide-react';
 import api from '../../api/axios';
 
@@ -76,6 +80,18 @@ export default function Tdashboard() {
 	const [showBookingModal, setShowBookingModal] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [successMessage, setSuccessMessage] = useState<string | null>(null);
+	
+	// Checklist state
+	const [checklist, setChecklist] = useState<Array<{id: string, label: string, isChecked: boolean, checkedAt?: string}>>([]);
+	const [loadingChecklist, setLoadingChecklist] = useState(false);
+	const [updatingChecklist, setUpdatingChecklist] = useState<string | null>(null);
+	
+	// Photo state
+	const [photos, setPhotos] = useState<Array<{id: string, type: string, fileUrl: string, uploadedAt: string}>>([]);
+	const [loadingPhotos, setLoadingPhotos] = useState(false);
+	const [uploadingPhoto, setUploadingPhoto] = useState(false);
+	const [selectedBeforeFiles, setSelectedBeforeFiles] = useState<FileList | null>(null);
+	const [selectedAfterFiles, setSelectedAfterFiles] = useState<FileList | null>(null);
 
 	// Load user from localStorage
 	useEffect(() => {
@@ -182,6 +198,48 @@ export default function Tdashboard() {
 
 	const handleUpdateStatus = async (bookingId: string, newStatus: string) => {
 		if (!user?.id) return;
+		
+		// AC-11: Validate checklist before Confirmed -> In Progress
+		if (newStatus === 'in_progress') {
+			try {
+				const validationResponse = await api.get(`/v1/technician/bookings/${bookingId}/validate-checklist`);
+				if (!validationResponse.data.isComplete) {
+					const incompleteItems = validationResponse.data.incompleteItems || [];
+					setError(
+						`Cannot start service. ${incompleteItems.length} checklist item(s) incomplete:\n` +
+						incompleteItems.slice(0, 3).join(', ') +
+						(incompleteItems.length > 3 ? '...' : '')
+					);
+					setTimeout(() => setError(null), 8000);
+					return;
+				}
+			} catch (err: any) {
+				setError('Failed to validate checklist');
+				setTimeout(() => setError(null), 5000);
+				return;
+			}
+		}
+
+		// AC-12: Validate photos before In Progress -> Completed
+		if (newStatus === 'completed') {
+			try {
+				const validationResponse = await api.get(`/v1/technician/bookings/${bookingId}/validate-photos`);
+				if (!validationResponse.data.hasRequiredPhotos) {
+					const missingRequirements = validationResponse.data.missingRequirements || [];
+					setError(
+						`Cannot complete service. Photo requirements not met:\n` +
+						missingRequirements.join('\n')
+					);
+					setTimeout(() => setError(null), 8000);
+					return;
+				}
+			} catch (err: any) {
+				setError('Failed to validate photos');
+				setTimeout(() => setError(null), 5000);
+				return;
+			}
+		}
+
 		setUpdatingStatus(bookingId);
 		setError(null);
 		
@@ -198,8 +256,10 @@ export default function Tdashboard() {
 			// Refresh data
 			await fetchMyBookings();
 		} catch (err: any) {
-			setError(err?.response?.data?.message || 'Failed to update status');
-			setTimeout(() => setError(null), 5000);
+			// Display backend validation error
+			const errorMessage = err?.response?.data?.message || 'Failed to update status';
+			setError(errorMessage);
+			setTimeout(() => setError(null), 8000);
 		} finally {
 			setUpdatingStatus(null);
 		}
@@ -232,9 +292,122 @@ export default function Tdashboard() {
 		navigate('/login');
 	};
 
-	const openBookingDetails = (booking: Booking) => {
+	const openBookingDetails = async (booking: Booking) => {
 		setSelectedBooking(booking);
 		setShowBookingModal(true);
+		
+		// Fetch checklist and photos for this booking
+		await Promise.all([
+			fetchChecklist(booking.id),
+			fetchPhotos(booking.id)
+		]);
+	};
+
+	const fetchChecklist = async (bookingId: string) => {
+		setLoadingChecklist(true);
+		try {
+			const response = await api.get(`/v1/technician/bookings/${bookingId}/checklist`);
+			setChecklist(response.data);
+		} catch (err: any) {
+			console.error('Failed to fetch checklist:', err);
+			setChecklist([]);
+		} finally {
+			setLoadingChecklist(false);
+		}
+	};
+
+	const toggleChecklistItem = async (checklistItemId: string) => {
+		if (!selectedBooking || !user?.id) return;
+		
+		setUpdatingChecklist(checklistItemId);
+		try {
+			await api.post(
+				`/v1/technician/bookings/${selectedBooking.id}/checklist/${checklistItemId}`,
+				{ technicianId: user.id }
+			);
+			
+			// Refresh checklist
+			await fetchChecklist(selectedBooking.id);
+			
+			setSuccessMessage('Checklist item updated');
+			setTimeout(() => setSuccessMessage(null), 2000);
+		} catch (err: any) {
+			setError(err?.response?.data?.message || 'Failed to update checklist');
+			setTimeout(() => setError(null), 5000);
+		} finally {
+			setUpdatingChecklist(null);
+		}
+	};
+
+	const fetchPhotos = async (bookingId: string) => {
+		setLoadingPhotos(true);
+		try {
+			const response = await api.get(`/v1/technician/bookings/${bookingId}/photos`);
+			setPhotos(response.data);
+		} catch (err: any) {
+			console.error('Failed to fetch photos:', err);
+			setPhotos([]);
+		} finally {
+			setLoadingPhotos(false);
+		}
+	};
+
+	const handlePhotoUpload = async (photoType: 'BEFORE' | 'AFTER') => {
+		if (!selectedBooking) return;
+		
+		const files = photoType === 'BEFORE' ? selectedBeforeFiles : selectedAfterFiles;
+		if (!files || files.length === 0) {
+			setError('Please select photos to upload');
+			return;
+		}
+
+		setUploadingPhoto(true);
+		setError(null);
+
+		try {
+			// Upload each file
+			for (let i = 0; i < files.length; i++) {
+				const formData = new FormData();
+				formData.append('file', files[i]);
+				formData.append('bookingId', selectedBooking.id);
+				formData.append('type', photoType);
+				formData.append('technicianId', user?.id || '');
+
+				await api.post(`/v1/technician/bookings/${selectedBooking.id}/photos`, formData, {
+					headers: {
+						'Content-Type': 'multipart/form-data'
+					}
+				});
+			}
+
+			setSuccessMessage(`${files.length} photo(s) uploaded successfully`);
+			setTimeout(() => setSuccessMessage(null), 3000);
+			
+			// Clear selected files
+			if (photoType === 'BEFORE') {
+				setSelectedBeforeFiles(null);
+			} else {
+				setSelectedAfterFiles(null);
+			}
+
+			// Refresh photos
+			await fetchPhotos(selectedBooking.id);
+		} catch (err: any) {
+			setError(err?.response?.data?.message || 'Failed to upload photos');
+			setTimeout(() => setError(null), 5000);
+		} finally {
+			setUploadingPhoto(false);
+		}
+	};
+
+	const getChecklistCompletion = () => {
+		if (checklist.length === 0) return 0;
+		const checked = checklist.filter(item => item.isChecked).length;
+		return Math.round((checked / checklist.length) * 100);
+	};
+
+	const getPhotoCount = (type: 'BEFORE' | 'AFTER') => {
+		return photos.filter(p => p.type === type).length;
 	};
 
 	const getStatusColor = (status: string) => {
@@ -740,8 +913,8 @@ export default function Tdashboard() {
 			{/* Booking Details Modal */}
 			{showBookingModal && selectedBooking && (
 				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-					<div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
-						<div className="mb-4 flex items-center justify-between">
+					<div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
+						<div className="mb-4 flex items-center justify-between sticky top-0 bg-white pb-4 border-b border-slate-200">
 							<h3 className="text-lg font-bold text-slate-900">Booking Details</h3>
 							<button
 								onClick={() => setShowBookingModal(false)}
@@ -750,6 +923,20 @@ export default function Tdashboard() {
 								<X className="h-5 w-5 text-slate-500" />
 							</button>
 						</div>
+						
+						{/* Error/Success Messages */}
+						{error && (
+							<div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 p-3 flex items-start gap-2">
+								<AlertCircle className="h-4 w-4 text-rose-600 flex-shrink-0 mt-0.5" />
+								<p className="text-xs text-rose-700 whitespace-pre-line">{error}</p>
+							</div>
+						)}
+						{successMessage && (
+							<div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 flex items-start gap-2">
+								<CheckCircle className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+								<p className="text-xs text-emerald-700">{successMessage}</p>
+							</div>
+						)}
 						
 						<div className="space-y-4">
 							<div className="rounded-lg bg-violet-50 p-3">
@@ -822,6 +1009,164 @@ export default function Tdashboard() {
 								<div className="rounded-lg bg-amber-50 p-3">
 									<div className="text-xs text-slate-500">Special Instructions</div>
 									<div className="text-sm text-slate-700">{selectedBooking.specialInstructions}</div>
+								</div>
+							)}
+							
+							{/* Pre-Service Checklist (AC-11) */}
+							{(selectedBooking.status === 'confirmed' || selectedBooking.status === 'in_progress') && (
+								<div className="rounded-lg border border-slate-200 p-4">
+									<div className="mb-3 flex items-center justify-between">
+										<h4 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+											<ListChecks className="h-4 w-4" />
+											Pre-Service Checklist
+										</h4>
+										<span className={`text-xs font-bold ${getChecklistCompletion() === 100 ? 'text-emerald-600' : 'text-slate-600'}`}>
+											{getChecklistCompletion()}%
+										</span>
+									</div>
+															
+									{/* Progress Bar */}
+									<div className="mb-3 h-2 w-full rounded-full bg-slate-200">
+										<div 
+											className={`h-full rounded-full transition-all ${getChecklistCompletion() === 100 ? 'bg-emerald-500' : 'bg-violet-500'}`}
+											style={{ width: `${getChecklistCompletion()}%` }}
+										/>
+									</div>
+							
+									{loadingChecklist ? (
+										<div className="text-center py-4 text-xs text-slate-500">Loading checklist...</div>
+									) : checklist.length === 0 ? (
+										<div className="text-center py-4 text-xs text-slate-500">No checklist items found</div>
+									) : (
+										<div className="space-y-2 max-h-64 overflow-y-auto">
+											{checklist.map((item) => (
+												<button
+													key={item.id}
+													onClick={() => toggleChecklistItem(item.id)}
+													disabled={updatingChecklist === item.id}
+													className={`w-full flex items-center gap-3 p-2 rounded-lg border transition-all ${
+														item.isChecked 
+															? 'bg-emerald-50 border-emerald-200' 
+															: 'bg-white border-slate-200 hover:border-violet-300'
+													}`}
+												>
+													<div className={`flex h-5 w-5 items-center justify-center rounded border ${
+														item.isChecked ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300'
+													}`}>
+														{item.isChecked && <Check className="h-3 w-3 text-white" />}
+													</div>
+													<span className={`text-xs flex-1 text-left ${item.isChecked ? 'text-emerald-700 line-through' : 'text-slate-700'}`}>
+														{item.label}
+													</span>
+													{item.checkedAt && (
+														<span className="text-[10px] text-slate-400">
+															{new Date(item.checkedAt).toLocaleTimeString()}
+														</span>
+													)}
+												</button>
+											))}
+										</div>
+									)}
+								</div>
+							)}
+							
+							{/* Photo Upload (AC-12) */}
+							{(selectedBooking.status === 'in_progress' || selectedBooking.status === 'completed') && (
+								<div className="rounded-lg border border-slate-200 p-4">
+									<h4 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
+										<Camera className="h-4 w-4" />
+										Photo Documentation
+									</h4>
+							
+									{/* Before Photos */}
+									<div className="mb-4">
+										<div className="flex items-center justify-between mb-2">
+											<span className="text-xs font-medium text-slate-700">Before Service Photos</span>
+											<span className="text-xs text-slate-500">{getPhotoCount('BEFORE')} uploaded</span>
+										</div>
+																
+										{/* Photo Preview */}
+										{loadingPhotos ? (
+											<div className="text-center py-2 text-xs text-slate-500">Loading photos...</div>
+										) : (
+											<div className="grid grid-cols-3 gap-2 mb-2">
+												{photos.filter(p => p.type === 'BEFORE').map((photo) => (
+													<div key={photo.id} className="relative aspect-square rounded-lg overflow-hidden bg-slate-100">
+														<img src={photo.fileUrl} alt="Before" className="w-full h-full object-cover" />
+													</div>
+												))}
+											</div>
+										)}
+																
+										{/* Upload Input */}
+										<div className="flex items-center gap-2">
+											<label className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg border-2 border-dashed border-slate-300 cursor-pointer hover:border-violet-400 transition-all">
+												<Upload className="h-4 w-4 text-slate-400" />
+												<span className="text-xs text-slate-600">
+													{selectedBeforeFiles ? `${selectedBeforeFiles.length} file(s) selected` : 'Select files'}
+												</span>
+												<input
+													type="file"
+													accept="image/*"
+													multiple
+													className="hidden"
+													onChange={(e) => setSelectedBeforeFiles(e.target.files)}
+												/>
+											</label>
+											<button
+												onClick={() => handlePhotoUpload('BEFORE')}
+												disabled={!selectedBeforeFiles || uploadingPhoto}
+												className="px-3 py-2 rounded-lg bg-violet-600 text-white text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-violet-700 transition-all"
+											>
+												{uploadingPhoto ? 'Uploading...' : 'Upload'}
+											</button>
+										</div>
+									</div>
+							
+									{/* After Photos */}
+									<div>
+										<div className="flex items-center justify-between mb-2">
+											<span className="text-xs font-medium text-slate-700">After Service Photos</span>
+											<span className="text-xs text-slate-500">{getPhotoCount('AFTER')} uploaded</span>
+										</div>
+																
+										{/* Photo Preview */}
+										{loadingPhotos ? (
+											<div className="text-center py-2 text-xs text-slate-500">Loading photos...</div>
+										) : (
+											<div className="grid grid-cols-3 gap-2 mb-2">
+												{photos.filter(p => p.type === 'AFTER').map((photo) => (
+													<div key={photo.id} className="relative aspect-square rounded-lg overflow-hidden bg-slate-100">
+														<img src={photo.fileUrl} alt="After" className="w-full h-full object-cover" />
+													</div>
+												))}
+											</div>
+										)}
+																
+										{/* Upload Input */}
+										<div className="flex items-center gap-2">
+											<label className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg border-2 border-dashed border-slate-300 cursor-pointer hover:border-violet-400 transition-all">
+												<Upload className="h-4 w-4 text-slate-400" />
+												<span className="text-xs text-slate-600">
+													{selectedAfterFiles ? `${selectedAfterFiles.length} file(s) selected` : 'Select files'}
+												</span>
+												<input
+													type="file"
+													accept="image/*"
+													multiple
+													className="hidden"
+													onChange={(e) => setSelectedAfterFiles(e.target.files)}
+												/>
+											</label>
+											<button
+												onClick={() => handlePhotoUpload('AFTER')}
+												disabled={!selectedAfterFiles || uploadingPhoto}
+												className="px-3 py-2 rounded-lg bg-violet-600 text-white text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-violet-700 transition-all"
+											>
+												{uploadingPhoto ? 'Uploading...' : 'Upload'}
+											</button>
+										</div>
+									</div>
 								</div>
 							)}
 							

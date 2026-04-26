@@ -24,6 +24,9 @@ public class Booking {
     @Column(nullable = false)
     private String serviceType;
 
+    @Column(name = "service_id")
+    private UUID serviceId;  // Link to Service entity
+
     @Column(nullable = false)
     private String deviceType;
 
@@ -147,6 +150,14 @@ public class Booking {
 
     public void setServiceType(String serviceType) {
         this.serviceType = serviceType;
+    }
+
+    public UUID getServiceId() {
+        return serviceId;
+    }
+
+    public void setServiceId(UUID serviceId) {
+        this.serviceId = serviceId;
     }
 
     public String getDeviceType() {

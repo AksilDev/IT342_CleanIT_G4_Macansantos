@@ -1,13 +1,10 @@
 package com.G4.backend.service;
 
-import com.G4.backend.entity.Booking;
-import com.G4.backend.entity.TechnicianSettings;
-import com.G4.backend.entity.User;
+import com.G4.backend.entity.*;
 import com.G4.backend.enums.BookingStatus;
+import com.G4.backend.enums.PhotoType;
 import com.G4.backend.exception.BookingException;
-import com.G4.backend.repository.BookingRepository;
-import com.G4.backend.repository.TechnicianSettingsRepository;
-import com.G4.backend.repository.UserRepository;
+import com.G4.backend.repository.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,14 +20,35 @@ public class BookingService {
     private final UserRepository userRepository;
     private final TechnicianSettingsRepository technicianSettingsRepository;
     private final BookingNotificationService notificationService;
+    private final ServiceRepository serviceRepository;
+    private final AddOnRepository addOnRepository;
+    private final ServiceAllowedAddonRepository serviceAllowedAddonRepository;
+    private final ChecklistItemRepository checklistItemRepository;
+    private final BookingAddonRepository bookingAddonRepository;
+    private final BookingChecklistRepository bookingChecklistRepository;
+    private final BookingPhotoRepository bookingPhotoRepository;
 
     public BookingService(BookingRepository bookingRepository, UserRepository userRepository, 
                          TechnicianSettingsRepository technicianSettingsRepository,
-                         BookingNotificationService notificationService) {
+                         BookingNotificationService notificationService,
+                         ServiceRepository serviceRepository,
+                         AddOnRepository addOnRepository,
+                         ServiceAllowedAddonRepository serviceAllowedAddonRepository,
+                         ChecklistItemRepository checklistItemRepository,
+                         BookingAddonRepository bookingAddonRepository,
+                         BookingChecklistRepository bookingChecklistRepository,
+                         BookingPhotoRepository bookingPhotoRepository) {
         this.bookingRepository = bookingRepository;
         this.userRepository = userRepository;
         this.technicianSettingsRepository = technicianSettingsRepository;
         this.notificationService = notificationService;
+        this.serviceRepository = serviceRepository;
+        this.addOnRepository = addOnRepository;
+        this.serviceAllowedAddonRepository = serviceAllowedAddonRepository;
+        this.checklistItemRepository = checklistItemRepository;
+        this.bookingAddonRepository = bookingAddonRepository;
+        this.bookingChecklistRepository = bookingChecklistRepository;
+        this.bookingPhotoRepository = bookingPhotoRepository;
     }
 
     /**
@@ -55,6 +73,28 @@ public class BookingService {
         booking.setClientId(clientId);
         // No technician assigned initially - they will accept the booking
         booking.setServiceType(bookingData.get("serviceType").toString());
+        
+        // AC-10: Validate add-on compatibility if serviceId is provided
+        if (bookingData.containsKey("serviceId") && bookingData.get("serviceId") != null) {
+            UUID serviceId = UUID.fromString(bookingData.get("serviceId").toString());
+            booking.setServiceId(serviceId);
+            
+            @SuppressWarnings("unchecked")
+            List<String> addOnIds = (List<String>) bookingData.get("addOns");
+            if (addOnIds != null && !addOnIds.isEmpty()) {
+                // Convert String IDs to UUIDs
+                List<UUID> addonUUIDs = addOnIds.stream()
+                    .map(UUID::fromString)
+                    .toList();
+                
+                // Validate compatibility
+                String compatibilityError = validateAddonCompatibility(serviceId, addonUUIDs);
+                if (compatibilityError != null) {
+                    throw new BookingException(compatibilityError, "ADDON_INCOMPATIBLE");
+                }
+            }
+        }
+        
         booking.setDeviceType(bookingData.get("deviceType").toString());
         
         @SuppressWarnings("unchecked")
@@ -75,6 +115,9 @@ public class BookingService {
         }
 
         Booking savedBooking = bookingRepository.save(booking);
+        
+        // Initialize checklist for this booking
+        initializeBookingChecklist(savedBooking);
         
         // Notify all available technicians about new booking
         notificationService.notifyTechniciansNewBooking(savedBooking);
@@ -274,6 +317,33 @@ public class BookingService {
                 .orElseThrow(() -> new BookingException("User not found", "USER_NOT_FOUND"));
         
         validateStatusChangePermission(booking, newStatus, user);
+
+        // AC-11: Validate checklist completion before Confirmed -> In Progress
+        if (oldStatus == BookingStatus.CONFIRMED && newStatus == BookingStatus.IN_PROGRESS) {
+            Map<String, Object> checklistValidation = validateChecklistComplete(bookingId);
+            if (!(Boolean) checklistValidation.get("isComplete")) {
+                @SuppressWarnings("unchecked")
+                List<String> incompleteItems = (List<String>) checklistValidation.get("incompleteItems");
+                throw new BookingException(
+                    "All checklist items must be completed before starting service. Missing: " + 
+                    String.join(", ", incompleteItems),
+                    "CHECKLIST_INCOMPLETE"
+                );
+            }
+        }
+
+        // AC-12: Validate photo uploads before In Progress -> Completed
+        if (oldStatus == BookingStatus.IN_PROGRESS && newStatus == BookingStatus.COMPLETED) {
+            Map<String, Object> photoValidation = validatePhotosUploaded(bookingId);
+            if (!(Boolean) photoValidation.get("hasRequiredPhotos")) {
+                @SuppressWarnings("unchecked")
+                List<String> missingRequirements = (List<String>) photoValidation.get("missingRequirements");
+                throw new BookingException(
+                    "Photo documentation required: " + String.join(". ", missingRequirements),
+                    "PHOTOS_MISSING"
+                );
+            }
+        }
 
         // Update status and related fields
         booking.setStatus(newStatus);
@@ -555,5 +625,200 @@ public class BookingService {
             "Booking rescheduled to " + newDate + " at " + newTimeSlot + ". Reason: " + reason);
 
         return savedBooking;
+    }
+
+    /**
+     * Validate add-on compatibility based on selected service (AC-10)
+     * Returns error message if incompatible, null if valid
+     */
+    public String validateAddonCompatibility(UUID serviceId, List<UUID> addonIds) {
+        if (addonIds == null || addonIds.isEmpty()) {
+            return null; // No add-ons selected, always valid
+        }
+
+        com.G4.backend.entity.Service service = serviceRepository.findById(serviceId)
+            .orElseThrow(() -> new BookingException("Service not found", "SERVICE_NOT_FOUND"));
+
+        // Check each add-on for compatibility
+        for (UUID addonId : addonIds) {
+            boolean isAllowed = serviceAllowedAddonRepository.existsByServiceIdAndAddonId(serviceId, addonId);
+            
+            if (!isAllowed) {
+                AddOn addOn = addOnRepository.findById(addonId)
+                    .orElseThrow(() -> new BookingException("Add-on not found", "ADDON_NOT_FOUND"));
+                
+                // Provide specific error message based on incompatibility
+                if (service.getName().contains("Deep Internal Cleaning")) {
+                    return "Deep Internal Cleaning cannot be combined with " + addOn.getName() + ". Please remove this add-on.";
+                } else if (service.getName().contains("GPU")) {
+                    return "GPU Deep Cleaning cannot be combined with " + addOn.getName() + ". Please remove this add-on.";
+                } else {
+                    return addOn.getName() + " is not compatible with " + service.getName();
+                }
+            }
+        }
+
+        return null; // All add-ons are compatible
+    }
+
+    /**
+     * Validate that all checklist items are completed (AC-11)
+     * Returns validation result with details
+     */
+    public Map<String, Object> validateChecklistComplete(UUID bookingId) {
+        Map<String, Object> result = new HashMap<>();
+        
+        long totalItems = bookingChecklistRepository.countTotalByBookingId(bookingId);
+        long checkedItems = bookingChecklistRepository.countCheckedByBookingId(bookingId);
+        
+        boolean isComplete = (totalItems > 0 && totalItems == checkedItems);
+        
+        result.put("isComplete", isComplete);
+        result.put("totalItems", totalItems);
+        result.put("checkedItems", checkedItems);
+        result.put("percentage", totalItems > 0 ? (checkedItems * 100 / totalItems) : 0);
+        
+        if (!isComplete) {
+            // Get incomplete items
+            List<BookingChecklist> allChecklist = bookingChecklistRepository.findByIdBookingId(bookingId);
+            List<String> incompleteItems = allChecklist.stream()
+                .filter(bc -> !bc.getIsChecked())
+                .map(bc -> bc.getChecklistItem().getLabel())
+                .toList();
+            
+            result.put("incompleteItems", incompleteItems);
+        }
+        
+        return result;
+    }
+
+    /**
+     * Validate that required photos are uploaded (AC-12)
+     * Returns validation result with details
+     */
+    public Map<String, Object> validatePhotosUploaded(UUID bookingId) {
+        Map<String, Object> result = new HashMap<>();
+        
+        long beforePhotos = bookingPhotoRepository.countByBookingIdAndType(bookingId, PhotoType.BEFORE);
+        long afterPhotos = bookingPhotoRepository.countByBookingIdAndType(bookingId, PhotoType.AFTER);
+        
+        boolean hasRequiredPhotos = (beforePhotos >= 1 && afterPhotos >= 1);
+        
+        result.put("hasRequiredPhotos", hasRequiredPhotos);
+        result.put("beforePhotosCount", beforePhotos);
+        result.put("afterPhotosCount", afterPhotos);
+        result.put("meetsRequirement", hasRequiredPhotos);
+        
+        if (!hasRequiredPhotos) {
+            List<String> missingRequirements = new ArrayList<>();
+            if (beforePhotos == 0) {
+                missingRequirements.add("At least 1 before-service photo is required");
+            }
+            if (afterPhotos == 0) {
+                missingRequirements.add("At least 1 after-service photo is required");
+            }
+            result.put("missingRequirements", missingRequirements);
+        }
+        
+        return result;
+    }
+
+    /**
+     * Initialize checklist for a new booking
+     */
+    private void initializeBookingChecklist(Booking booking) {
+        List<ChecklistItem> allItems = checklistItemRepository.findByIsActiveTrue();
+        
+        for (ChecklistItem item : allItems) {
+            BookingChecklist bookingChecklist = new BookingChecklist(booking, item);
+            bookingChecklistRepository.save(bookingChecklist);
+        }
+    }
+
+    /**
+     * Toggle checklist item status
+     */
+    public BookingChecklist toggleChecklistItem(UUID bookingId, UUID checklistItemId, UUID technicianId) {
+        // Validate technician is assigned to this booking
+        Booking booking = bookingRepository.findById(bookingId)
+            .orElseThrow(() -> new BookingException("Booking not found", "BOOKING_NOT_FOUND"));
+        
+        if (!booking.getTechnicianId().equals(technicianId)) {
+            throw new BookingException("Only assigned technician can update checklist", "INSUFFICIENT_PERMISSIONS");
+        }
+        
+        // Find the booking checklist item
+        BookingChecklist.BookingChecklistId bcId = new BookingChecklist.BookingChecklistId(bookingId, checklistItemId);
+        BookingChecklist bookingChecklist = bookingChecklistRepository.findById(bcId)
+            .orElseThrow(() -> new BookingException("Checklist item not found", "CHECKLIST_ITEM_NOT_FOUND"));
+        
+        // Toggle status
+        bookingChecklist.setIsChecked(!bookingChecklist.getIsChecked());
+        
+        return bookingChecklistRepository.save(bookingChecklist);
+    }
+
+    /**
+     * Get booking checklist with completion status
+     */
+    public List<Map<String, Object>> getBookingChecklist(UUID bookingId) {
+        List<BookingChecklist> checklist = bookingChecklistRepository.findByIdBookingId(bookingId);
+        List<Map<String, Object>> result = new ArrayList<>();
+        
+        for (BookingChecklist bc : checklist) {
+            Map<String, Object> item = new HashMap<>();
+            item.put("id", bc.getChecklistItem().getId());
+            item.put("label", bc.getChecklistItem().getLabel());
+            item.put("isChecked", bc.getIsChecked());
+            item.put("checkedAt", bc.getCheckedAt());
+            result.add(item);
+        }
+        
+        return result;
+    }
+
+    /**
+     * Get booking photos
+     */
+    public List<Map<String, Object>> getBookingPhotos(UUID bookingId) {
+        List<BookingPhoto> photos = bookingPhotoRepository.findByBookingId(bookingId);
+        List<Map<String, Object>> result = new ArrayList<>();
+        
+        for (BookingPhoto photo : photos) {
+            Map<String, Object> item = new HashMap<>();
+            item.put("id", photo.getId());
+            item.put("type", photo.getType().toString());
+            item.put("fileUrl", photo.getFileUrl());
+            item.put("uploadedAt", photo.getUploadedAt());
+            result.add(item);
+        }
+        
+        return result;
+    }
+
+    /**
+     * Add photo to booking
+     */
+    public BookingPhoto addBookingPhoto(UUID bookingId, String type, String fileUrl, UUID technicianId) {
+        // Validate booking exists
+        Booking booking = bookingRepository.findById(bookingId)
+            .orElseThrow(() -> new BookingException("Booking not found", "BOOKING_NOT_FOUND"));
+        
+        // Validate technician is assigned
+        if (!booking.getTechnicianId().equals(technicianId)) {
+            throw new BookingException("Only assigned technician can upload photos", "INSUFFICIENT_PERMISSIONS");
+        }
+        
+        // Parse photo type
+        PhotoType photoType;
+        try {
+            photoType = PhotoType.valueOf(type);
+        } catch (IllegalArgumentException e) {
+            throw new BookingException("Invalid photo type. Must be BEFORE or AFTER", "INVALID_PHOTO_TYPE");
+        }
+        
+        // Create and save photo record
+        BookingPhoto photo = new BookingPhoto(bookingId, photoType, fileUrl);
+        return bookingPhotoRepository.save(photo);
     }
 }

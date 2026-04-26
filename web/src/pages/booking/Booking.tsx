@@ -1,50 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Check } from 'lucide-react';
+import { ArrowLeft, Check, AlertCircle } from 'lucide-react';
 import api from '../../api/axios';
 
-// Service data
-const servicesData: Record<string, ServiceInfo> = {
-	external: {
-		id: 'external',
-		name: 'Standard External Cleaning',
-		description: 'Complete Deep Cleaning',
-		duration: 'Duration: 1-2 Hours',
-		basePrice: 200,
-		image: '/images/external-cleaning.jpg',
-	},
-	internal: {
-		id: 'internal',
-		name: 'Deep Internal Cleaning',
-		description: 'Complete Deep Cleaning',
-		duration: 'Duration: 1-2 Hours',
-		basePrice: 1250,
-		image: '/images/internal-cleaning.jpg',
-	},
-	gpu: {
-		id: 'gpu',
-		name: 'GPU Deep Cleaning',
-		description: 'Graphics Card Cleaning',
-		duration: 'Duration: 30mins - 1 Hour',
-		basePrice: 600,
-		image: '/images/gpu-cleaning.jpg',
-	},
-	psu: {
-		id: 'psu',
-		name: 'PSU Cleaning',
-		description: 'Power Supply Cleaning',
-		duration: 'Duration: 30mins - 1 Hour',
-		basePrice: 450,
-		image: '/images/psu-cleaning.jpg',
-	},
+// Service images mapping (for UI display only)
+const serviceImages: Record<string, string> = {
+	'Standard External Cleaning': '/images/external-cleaning.jpg',
+	'Deep Internal Cleaning': '/images/internal-cleaning.jpg',
+	'GPU Deep Cleaning': '/images/gpu-cleaning.jpg',
+	'PSU Cleaning': '/images/psu-cleaning.jpg',
 };
-
-const addOnServices: AddOnService[] = [
-	{ id: 'thermal', name: 'Thermal Paste Replacement', price: 200 },
-	{ id: 'cable', name: 'Cable Management', price: 50 },
-	{ id: 'gpu', name: 'GPU Deep Cleaning', price: 600 },
-	{ id: 'psu', name: 'PSU Cleaning', price: 450 },
-];
 
 const timeSlots: TimeSlot[] = [
 	{ id: '9-11', label: '9:00 AM - 11:00 AM' },
@@ -58,15 +23,17 @@ interface ServiceInfo {
 	id: string;
 	name: string;
 	description: string;
-	duration: string;
+	durationMinutes: number;
 	basePrice: number;
-	image: string;
+	isActive: boolean;
 }
 
 interface AddOnService {
 	id: string;
 	name: string;
+	description: string;
 	price: number;
+	isActive: boolean;
 }
 
 interface Technician {
@@ -88,6 +55,8 @@ export default function Booking() {
 	const { serviceId } = useParams<{ serviceId: string }>();
 
 	const [service, setService] = useState<ServiceInfo | null>(null);
+	const [allServices, setAllServices] = useState<ServiceInfo[]>([]);
+	const [compatibleAddOns, setCompatibleAddOns] = useState<AddOnService[]>([]);
 	const [technicians, setTechnicians] = useState<Technician[]>([]);
 	const [loadingTechs, setLoadingTechs] = useState(true);
 	const [selectedDevice, setSelectedDevice] = useState<'pc' | 'laptop' | null>(null);
@@ -99,6 +68,7 @@ export default function Booking() {
 	const [specialInstructions, setSpecialInstructions] = useState('');
 	const [bookingDate, setBookingDate] = useState<string>(new Date().toISOString().split('T')[0]);
 	const [submitting, setSubmitting] = useState(false);
+	const [error, setError] = useState<string | null>(null);
 
 	const user = React.useMemo(() => {
 		try {
@@ -114,12 +84,42 @@ export default function Booking() {
 			navigate('/login');
 			return;
 		}
-		if (serviceId && servicesData[serviceId]) {
-			setService(servicesData[serviceId]);
-		} else {
-			navigate('/dashboard');
-		}
+		
+		// Fetch services from API
+		const fetchServices = async () => {
+			try {
+				const response = await api.get('/v1/services');
+				setAllServices(response.data);
+				
+				// If serviceId is provided, find and set the service
+				if (serviceId) {
+					const found = response.data.find((s: ServiceInfo) => s.id === serviceId);
+					if (found) {
+						setService(found);
+						// Fetch compatible add-ons for this service
+						fetchCompatibleAddOns(found.id);
+					} else {
+						navigate('/dashboard');
+					}
+				}
+			} catch (err) {
+				console.error('Failed to fetch services', err);
+				navigate('/dashboard');
+			}
+		};
+		
+		fetchServices();
 	}, [serviceId, navigate, user]);
+
+	const fetchCompatibleAddOns = async (serviceId: string) => {
+		try {
+			const response = await api.get(`/v1/services/${serviceId}/addons`);
+			setCompatibleAddOns(response.data);
+		} catch (err) {
+			console.error('Failed to fetch compatible add-ons', err);
+			setCompatibleAddOns([]);
+		}
+	};
 
 	useEffect(() => {
 		const fetchTechnicians = async () => {
@@ -145,7 +145,7 @@ export default function Booking() {
 	const calculateTotal = () => {
 		if (!service) return 0;
 		const addOnTotal = selectedAddOns.reduce((sum, addOnId) => {
-			const addOn = addOnServices.find((a) => a.id === addOnId);
+			const addOn = compatibleAddOns.find((a: AddOnService) => a.id === addOnId);
 			return sum + (addOn?.price || 0);
 		}, 0);
 		return service.basePrice + addOnTotal;
@@ -161,15 +161,20 @@ export default function Booking() {
 			alert('Please login again');
 			return;
 		}
+		if (!service) {
+			alert('Please select a service');
+			return;
+		}
 
 		setSubmitting(true);
+		setError(null);
 		try {
 			const bookingData = {
 				clientId: user.id,
-				technicianId: selectedTechnician,
-				serviceType: service?.name,
+				serviceId: service.id, // Send service ID instead of name
+				serviceType: service.name, // Keep for backward compatibility
 				deviceType: selectedDevice,
-				addOns: selectedAddOns,
+				addOns: selectedAddOns, // Send addon IDs
 				timeSlot: selectedTimeSlot,
 				bookingDate: bookingDate,
 				address: address,
@@ -182,7 +187,9 @@ export default function Booking() {
 			alert('Booking submitted successfully!');
 			navigate('/dashboard?refresh=true');
 		} catch (err: any) {
-			alert(err?.response?.data?.message || 'Failed to submit booking');
+			const errorMessage = err?.response?.data?.message || 'Failed to submit booking';
+			setError(errorMessage);
+			alert(errorMessage);
 		} finally {
 			setSubmitting(false);
 		}
@@ -220,6 +227,17 @@ export default function Booking() {
 					<div className="h-full w-3/5 rounded-full bg-violet-500" />
 				</div>
 
+				{/* Error Alert */}
+				{error && (
+					<div className="mb-6 rounded-lg border border-rose-200 bg-rose-50 p-4 flex items-start gap-3">
+						<AlertCircle className="h-5 w-5 text-rose-600 flex-shrink-0 mt-0.5" />
+						<div>
+							<p className="text-sm font-medium text-rose-800">Booking Error</p>
+							<p className="text-sm text-rose-700 mt-1">{error}</p>
+						</div>
+					</div>
+				)}
+
 				<form onSubmit={handleSubmit} className="space-y-6">
 					{/* Selected Service */}
 					<div className="rounded-xl border border-violet-200 bg-white p-4 shadow-sm">
@@ -228,7 +246,7 @@ export default function Booking() {
 							<div className="flex gap-3">
 								<div className="h-16 w-16 rounded-lg bg-slate-100 overflow-hidden">
 									<img
-										src={service.image}
+										src={serviceImages[service.name] || '/images/default-service.jpg'}
 										alt={service.name}
 										className="h-full w-full object-cover"
 										onError={(e) => {
@@ -239,7 +257,7 @@ export default function Booking() {
 								<div>
 									<div className="text-xs font-semibold text-slate-900">{service.name}</div>
 									<div className="text-[10px] text-slate-400 mt-0.5">{service.description}</div>
-									<div className="text-[10px] text-slate-400">{service.duration}</div>
+									<div className="text-[10px] text-slate-400">Duration: {service.durationMinutes} mins</div>
 								</div>
 							</div>
 							<div className="text-sm font-bold text-violet-600">₱{service.basePrice}</div>
@@ -288,8 +306,11 @@ export default function Booking() {
 					{/* Add-on Services */}
 					<div>
 						<div className="text-xs font-semibold text-slate-700 mb-3">Add-on Services</div>
-						<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-							{addOnServices.map((addOn) => (
+						{compatibleAddOns.length === 0 ? (
+							<div className="text-xs text-slate-500 text-center py-4">Loading add-ons...</div>
+						) : (
+							<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+								{compatibleAddOns.map((addOn: AddOnService) => (
 								<button
 									key={addOn.id}
 									type="button"
@@ -308,10 +329,11 @@ export default function Booking() {
 										</div>
 										<span className="text-xs font-medium text-slate-700">{addOn.name}</span>
 									</div>
-									<span className="text-xs font-bold text-violet-600">₱{addOn.price}</span>
-								</button>
-							))}
-						</div>
+										<span className="text-xs font-bold text-violet-600">₱{addOn.price}</span>
+									</button>
+								))}
+							</div>
+						)}
 					</div>
 
 					{/* Select Technician */}
@@ -423,19 +445,19 @@ export default function Booking() {
 							<span className="text-xs text-slate-600">Base Service</span>
 							<span className="text-xs font-semibold text-slate-700">₱{service.basePrice}</span>
 						</div>
-						{selectedAddOns.length > 0 && (
-							<div className="space-y-1 mb-2">
-								{selectedAddOns.map((addOnId) => {
-									const addOn = addOnServices.find((a) => a.id === addOnId);
-									return addOn ? (
-										<div key={addOnId} className="flex items-center justify-between">
-											<span className="text-[10px] text-slate-500">+ {addOn.name}</span>
-											<span className="text-[10px] text-slate-500">₱{addOn.price}</span>
-										</div>
-										) : null;
-									})}
-								</div>
-							)}
+							{selectedAddOns.length > 0 && (
+								<div className="space-y-1 mb-2">
+									{selectedAddOns.map((addOnId) => {
+										const addOn = compatibleAddOns.find((a: AddOnService) => a.id === addOnId);
+										return addOn ? (
+											<div key={addOnId} className="flex items-center justify-between">
+												<span className="text-[10px] text-slate-500">+ {addOn.name}</span>
+												<span className="text-[10px] text-slate-500">₱{addOn.price}</span>
+											</div>
+											) : null;
+										})}
+									</div>
+								)}
 						<div className="border-t border-violet-200 pt-2 flex items-center justify-between">
 							<span className="text-xs font-semibold text-slate-700">Total Amount</span>
 							<span className="text-base font-bold text-violet-600">₱{calculateTotal()}</span>
