@@ -21,11 +21,17 @@ public class BookingPhoto {
     private Booking booking;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(name = "photo_type", nullable = false)
     private PhotoType type;
+
+    @Column(name = "photo_url", nullable = false)
+    private String photoUrl;
 
     @Column(name = "file_url", nullable = false)
     private String fileUrl;
+
+    @Column(name = "uploaded_by", nullable = false)
+    private UUID uploadedBy;
 
     @Column(name = "uploaded_at")
     private LocalDateTime uploadedAt;
@@ -37,10 +43,12 @@ public class BookingPhoto {
 
     public BookingPhoto() {}
 
-    public BookingPhoto(UUID bookingId, PhotoType type, String fileUrl) {
+    public BookingPhoto(UUID bookingId, PhotoType type, String fileUrl, UUID uploadedBy) {
         this.bookingId = bookingId;
         this.type = type;
+        this.photoUrl = fileUrl; // Set both to same URL
         this.fileUrl = fileUrl;
+        this.uploadedBy = uploadedBy;
     }
 
     // Getters and Setters
@@ -56,8 +64,14 @@ public class BookingPhoto {
     public PhotoType getType() { return type; }
     public void setType(PhotoType type) { this.type = type; }
 
+    public String getPhotoUrl() { return photoUrl; }
+    public void setPhotoUrl(String photoUrl) { this.photoUrl = photoUrl; }
+
     public String getFileUrl() { return fileUrl; }
     public void setFileUrl(String fileUrl) { this.fileUrl = fileUrl; }
+
+    public UUID getUploadedBy() { return uploadedBy; }
+    public void setUploadedBy(UUID uploadedBy) { this.uploadedBy = uploadedBy; }
 
     public LocalDateTime getUploadedAt() { return uploadedAt; }
     public void setUploadedAt(LocalDateTime uploadedAt) { this.uploadedAt = uploadedAt; }

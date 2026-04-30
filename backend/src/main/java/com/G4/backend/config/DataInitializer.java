@@ -120,16 +120,18 @@ public class DataInitializer {
             // Initialize Checklist Items
             System.out.println("\n=== Initializing Checklist Items ===");
             List<String> checklistLabels = Arrays.asList(
-                "Power off and unplug device",
-                "Remove external dust and debris",
-                "Open device casing carefully",
-                "Check all internal connections",
-                "Clean fans and heat sinks",
-                "Remove dust from motherboard",
-                "Check cable management",
-                "Test device functionality",
-                "Reassemble device properly",
-                "Final quality check"
+                "Verify client identity and service location",
+                "Inspect equipment and document initial condition",
+                "Confirm service scope with client",
+                "Prepare workspace and tools",
+                "Review safety precautions",
+                "Take before-service photos",
+                "Perform cleaning service as specified",
+                "Test device functionality after service",
+                "Take after-service photos",
+                "Clean workspace and pack tools",
+                "Final quality check",
+                "Obtain client confirmation"
             );
 
             for (String label : checklistLabels) {

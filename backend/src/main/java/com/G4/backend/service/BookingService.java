@@ -208,6 +208,8 @@ public class BookingService {
      */
     public List<Map<String, Object>> getPendingBookingsForTechnicians() {
         List<Booking> bookings = getPendingBookings();
+        System.out.println("DEBUG: Found " + bookings.size() + " pending bookings for technicians");
+        
         List<Map<String, Object>> response = new ArrayList<>();
         
         for (Booking booking : bookings) {
@@ -528,8 +530,26 @@ public class BookingService {
         map.put("bookingCode", booking.getBookingCode());
         map.put("serviceType", booking.getServiceType());
         map.put("deviceType", booking.getDeviceType());
-        map.put("addOns", booking.getAddOns() != null ? 
-            Arrays.asList(booking.getAddOns().split(",")) : new ArrayList<>());
+        
+        // Convert add-on UUIDs to names for display
+        List<String> addOnNames = new ArrayList<>();
+        if (booking.getAddOns() != null && !booking.getAddOns().isEmpty()) {
+            String[] addOnIds = booking.getAddOns().split(",");
+            for (String addOnId : addOnIds) {
+                try {
+                    UUID addOnUUID = UUID.fromString(addOnId.trim());
+                    AddOn addOn = addOnRepository.findById(addOnUUID).orElse(null);
+                    if (addOn != null) {
+                        addOnNames.add(addOn.getName());
+                    } else {
+                        addOnNames.add(addOnId.trim()); // Fallback to UUID if not found
+                    }
+                } catch (IllegalArgumentException e) {
+                    addOnNames.add(addOnId.trim()); // Keep as-is if not a valid UUID
+                }
+            }
+        }
+        map.put("addOns", addOnNames);
         map.put("timeSlot", booking.getTimeSlot());
         map.put("bookingDate", booking.getBookingDate());
         
@@ -813,12 +833,18 @@ public class BookingService {
         PhotoType photoType;
         try {
             photoType = PhotoType.valueOf(type);
+            System.out.println("DEBUG: Photo type parsed: " + photoType + " (from: " + type + ")");
         } catch (IllegalArgumentException e) {
             throw new BookingException("Invalid photo type. Must be BEFORE or AFTER", "INVALID_PHOTO_TYPE");
         }
         
         // Create and save photo record
-        BookingPhoto photo = new BookingPhoto(bookingId, photoType, fileUrl);
-        return bookingPhotoRepository.save(photo);
+        BookingPhoto photo = new BookingPhoto(bookingId, photoType, fileUrl, technicianId);
+        System.out.println("DEBUG: BookingPhoto created - bookingId: " + bookingId + ", type: " + photo.getType() + ", fileUrl: " + fileUrl + ", uploadedBy: " + technicianId);
+        
+        BookingPhoto savedPhoto = bookingPhotoRepository.save(photo);
+        System.out.println("DEBUG: BookingPhoto saved with ID: " + savedPhoto.getId());
+        
+        return savedPhoto;
     }
 }

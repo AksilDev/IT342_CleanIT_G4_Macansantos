@@ -93,35 +93,51 @@ export default function Tdashboard() {
 	const [selectedBeforeFiles, setSelectedBeforeFiles] = useState<FileList | null>(null);
 	const [selectedAfterFiles, setSelectedAfterFiles] = useState<FileList | null>(null);
 
-	// Load user from localStorage
+	// Load user from localStorage and fetch fresh profile
 	useEffect(() => {
-		const loadUser = () => {
+		const loadUser = async () => {
 			try {
 				const raw = localStorage.getItem('cleanit.user');
-				if (raw) {
-					const parsed = JSON.parse(raw);
-					setUser(parsed);
-					return parsed;
+				if (!raw) {
+					navigate('/login');
+					return;
 				}
-			} catch {
+				
+				const storedUser = JSON.parse(raw);
+				
+				// Fetch fresh user data including verification status
+				try {
+					const response = await api.get(`/v1/user/profile/${storedUser.email}`);
+					const updatedUser = { ...storedUser, ...response.data };
+					localStorage.setItem('cleanit.user', JSON.stringify(updatedUser));
+					setUser(updatedUser);
+					console.log('Technician user loaded:', updatedUser.name, '| Verified:', updatedUser.verified);
+				} catch (err) {
+					console.error('Failed to fetch user profile, using stored data');
+					setUser(storedUser);
+				}
+			} catch (err) {
 				console.error('Failed to parse user');
+				navigate('/login');
+			} finally {
+				setLoading(false);
 			}
-			return null;
 		};
 		
-		const userData = loadUser();
-		if (!userData) {
-			navigate('/login');
-			return;
-		}
-		
-		setLoading(false);
+		loadUser();
 	}, [navigate]);
 
 	// Fetch all data when user is loaded and verified
 	useEffect(() => {
-		if (user?.id && user?.verified) {
-			fetchAllData();
+		if (user?.id) {
+			console.log('Checking technician verification - ID:', user.id, '| Verified:', user.verified);
+			if (user.verified) {
+				console.log('Technician is verified, fetching data...');
+				fetchAllData();
+			} else {
+				console.warn('Technician is NOT verified - waiting for admin approval');
+				setError('Your account is pending admin verification. Please wait before accessing bookings.');
+			}
 		}
 	}, [user?.id, user?.verified]);
 
@@ -139,9 +155,13 @@ export default function Tdashboard() {
 		setLoadingPending(true);
 		try {
 			const response = await api.get('/v1/technician/bookings/pending');
+			console.log('Pending bookings response:', response.data);
+			console.log('Number of pending bookings:', response.data.length);
 			setPendingBookings(response.data);
 		} catch (err: any) {
 			console.error('Failed to fetch pending bookings:', err);
+			console.error('Error response:', err.response?.data);
+			setError('Failed to load pending bookings: ' + (err.response?.data?.message || err.message));
 		} finally {
 			setLoadingPending(false);
 		}
@@ -713,6 +733,20 @@ export default function Tdashboard() {
 														</div>
 														<h3 className="text-sm font-semibold text-slate-900">{booking.serviceType}</h3>
 														<p className="text-xs text-slate-500 mt-1">Device: {booking.deviceType}</p>
+														
+														{/* Client Information */}
+														{booking.clientName && (
+															<div className="mt-3 p-2 rounded-lg bg-blue-50 border border-blue-100">
+																<p className="text-xs font-medium text-blue-900">Client Details</p>
+																<p className="text-xs text-blue-700 mt-1">👤 {booking.clientName}</p>
+																{booking.clientContact && (
+																	<p className="text-xs text-blue-700">📱 {booking.clientContact}</p>
+																)}
+																{booking.clientEmail && (
+																	<p className="text-xs text-blue-700">✉️ {booking.clientEmail}</p>
+																)}
+															</div>
+														)}
 														
 														<div className="flex flex-wrap gap-3 mt-3 text-xs text-slate-500">
 															<span className="flex items-center gap-1">
