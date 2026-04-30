@@ -171,6 +171,7 @@ export default function Booking() {
 		try {
 			const bookingData = {
 				clientId: user.id,
+				technicianId: selectedTechnician, // Pass selected technician ID
 				serviceId: service.id, // Send service ID instead of name
 				serviceType: service.name, // Keep for backward compatibility
 				deviceType: selectedDevice,

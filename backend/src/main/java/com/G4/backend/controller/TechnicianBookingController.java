@@ -27,10 +27,16 @@ public class TechnicianBookingController {
      * Get all pending bookings that technicians can accept
      */
     @GetMapping("/bookings/pending")
-    public ResponseEntity<?> getPendingBookings() {
+    public ResponseEntity<?> getPendingBookings(@RequestParam("technicianId") String technicianIdStr) {
         try {
-            List<Map<String, Object>> bookings = bookingService.getPendingBookingsForTechnicians();
+            UUID technicianId = UUID.fromString(technicianIdStr);
+            List<Map<String, Object>> bookings = bookingService.getPendingBookingsForTechnicians(technicianId);
             return ResponseEntity.ok(bookings);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "error", "Invalid technician ID format",
+                "message", e.getMessage()
+            ));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of(
                 "error", "Failed to fetch pending bookings",

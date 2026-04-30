@@ -18,6 +18,7 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
     List<Booking> findByTechnicianIdOrderByCreatedAtDesc(UUID technicianId);
     List<Booking> findByStatusOrderByCreatedAtDesc(BookingStatus status);
     List<Booking> findByTechnicianIdAndStatusInOrderByBookingDateAsc(UUID technicianId, List<BookingStatus> statuses);
+    List<Booking> findByTechnicianIdAndStatusOrderByCreatedAtAsc(UUID technicianId, BookingStatus status);
     List<Booking> findByClientIdAndStatusOrderByCreatedAtDesc(UUID clientId, BookingStatus status);
     
     // Find all pending bookings (no technician assigned yet)

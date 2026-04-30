@@ -71,7 +71,30 @@ public class BookingService {
 
         Booking booking = new Booking();
         booking.setClientId(clientId);
-        // No technician assigned initially - they will accept the booking
+        
+        boolean isPreAssigned = false;
+        
+        // Check if client pre-assigned a technician
+        if (bookingData.containsKey("technicianId") && bookingData.get("technicianId") != null) {
+            UUID technicianId = UUID.fromString(bookingData.get("technicianId").toString());
+            // Validate technician exists
+            User technician = userRepository.findById(technicianId)
+                    .orElseThrow(() -> new BookingException("Technician not found", "TECHNICIAN_NOT_FOUND"));
+            if (!"technician".equals(technician.getRole())) {
+                throw new BookingException("User is not a technician", "INVALID_TECHNICIAN_ROLE");
+            }
+            if (!technician.isVerified()) {
+                throw new BookingException("Technician account is not verified", "TECHNICIAN_NOT_VERIFIED");
+            }
+            booking.setTechnicianId(technicianId);
+            isPreAssigned = true;
+            
+            // Pre-assigned bookings are automatically confirmed
+            booking.setStatus(BookingStatus.CONFIRMED);
+            booking.setConfirmedAt(LocalDateTime.now());
+        }
+        // No technician assigned initially - they will accept the booking (status remains PENDING)
+        
         booking.setServiceType(bookingData.get("serviceType").toString());
         
         // AC-10: Validate add-on compatibility if serviceId is provided
@@ -119,8 +142,14 @@ public class BookingService {
         // Checklist will be initialized when service starts (CONFIRMED -> IN_PROGRESS)
         // NOT initialized at booking creation to ensure proper workflow timing
         
-        // Notify all available technicians about new booking
-        notificationService.notifyTechniciansNewBooking(savedBooking);
+        // Notify based on assignment status
+        if (isPreAssigned) {
+            // Pre-assigned booking: notify only the assigned technician and client
+            notificationService.notifyStatusChange(savedBooking, BookingStatus.CONFIRMED, "Booking confirmed with pre-assigned technician");
+        } else {
+            // Unassigned booking: notify all available technicians about new booking
+            notificationService.notifyTechniciansNewBooking(savedBooking);
+        }
         
         return savedBooking;
     }
@@ -132,13 +161,24 @@ public class BookingService {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new BookingException("Booking not found", "BOOKING_NOT_FOUND"));
 
-        // Validate booking is still pending and no technician assigned
+        // Validate booking is still pending
         if (booking.getStatus() != BookingStatus.PENDING) {
             throw new BookingException("Booking is no longer pending", "BOOKING_NOT_PENDING");
         }
         
+        // Check if booking is pre-assigned to this technician
         if (booking.getTechnicianId() != null) {
-            throw new BookingException("Booking already has a technician assigned", "BOOKING_ALREADY_ASSIGNED");
+            // If pre-assigned to the requesting technician, auto-confirm it
+            if (booking.getTechnicianId().equals(technicianId)) {
+                booking.setStatus(BookingStatus.CONFIRMED);
+                booking.setConfirmedAt(LocalDateTime.now());
+                Booking savedBooking = bookingRepository.save(booking);
+                notificationService.notifyStatusChange(savedBooking, BookingStatus.CONFIRMED, "Booking confirmed by assigned technician");
+                return savedBooking;
+            } else {
+                // Pre-assigned to a different technician
+                throw new BookingException("Booking is assigned to another technician", "BOOKING_ASSIGNED_TO_OTHER");
+            }
         }
 
         // Validate technician
@@ -205,10 +245,26 @@ public class BookingService {
 
     /**
      * Get pending bookings for technician dashboard (with limited info)
+     * 
+     * Returns ONLY bookings specifically assigned to this technician with PENDING status.
+     * Unassigned bookings (technicianId = NULL) are NOT visible to technicians.
      */
-    public List<Map<String, Object>> getPendingBookingsForTechnicians() {
-        List<Booking> bookings = getPendingBookings();
-        System.out.println("DEBUG: Found " + bookings.size() + " pending bookings for technicians");
+    public List<Map<String, Object>> getPendingBookingsForTechnicians(UUID technicianId) {
+        // Validate technician exists and has correct role
+        User technician = userRepository.findById(technicianId)
+            .orElseThrow(() -> new BookingException("Technician not found", "TECHNICIAN_NOT_FOUND"));
+        
+        if (!"technician".equals(technician.getRole())) {
+            throw new BookingException("User is not a technician", "INVALID_TECHNICIAN_ROLE");
+        }
+        
+        // Get ONLY pending bookings assigned to this specific technician
+        List<Booking> bookings = bookingRepository.findByTechnicianIdAndStatusOrderByCreatedAtAsc(
+            technicianId, 
+            BookingStatus.PENDING
+        );
+        
+        System.out.println("DEBUG: Found " + bookings.size() + " pending bookings assigned to technician " + technicianId);
         
         List<Map<String, Object>> response = new ArrayList<>();
         
@@ -585,6 +641,7 @@ public class BookingService {
         map.put("noShowAt", booking.getNoShowAt());
         
         // Add user details
+        map.put("technicianId", booking.getTechnicianId() != null ? booking.getTechnicianId().toString() : null); // Convert UUID to String
         if (booking.getTechnicianId() != null) {
             User technician = userRepository.findById(booking.getTechnicianId()).orElse(null);
             if (technician != null) {

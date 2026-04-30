@@ -152,9 +152,15 @@ export default function Tdashboard() {
 	};
 
 	const fetchPendingBookings = async () => {
+		if (!user?.id) {
+			console.warn('Cannot fetch pending bookings: user ID not available');
+			return;
+		}
+		
 		setLoadingPending(true);
 		try {
-			const response = await api.get('/v1/technician/bookings/pending');
+			// Pass authenticated technician's ID to backend
+			const response = await api.get(`/v1/technician/bookings/pending?technicianId=${user.id}`);
 			console.log('Pending bookings response:', response.data);
 			console.log('Number of pending bookings:', response.data.length);
 			setPendingBookings(response.data);
