@@ -117,21 +117,14 @@ public class DataInitializer {
             addServiceAddonMapping(serviceAllowedAddonRepository, psuCleaning, thermalPaste);
             addServiceAddonMapping(serviceAllowedAddonRepository, psuCleaning, cableManagement);
 
-            // Initialize Checklist Items
-            System.out.println("\n=== Initializing Checklist Items ===");
+            // Initialize Checklist Items (Pre-Service Only - 5 items)
+            System.out.println("\n=== Initializing Pre-Service Checklist Items ===");
             List<String> checklistLabels = Arrays.asList(
-                "Verify client identity and service location",
-                "Inspect equipment and document initial condition",
-                "Confirm service scope with client",
-                "Prepare workspace and tools",
-                "Review safety precautions",
-                "Take before-service photos",
-                "Perform cleaning service as specified",
-                "Test device functionality after service",
-                "Take after-service photos",
-                "Clean workspace and pack tools",
-                "Final quality check",
-                "Obtain client confirmation"
+                "Verify location is valid and searchable",
+                "Inspect tools for service are clean and working",
+                "Client available and gives consent",
+                "Test device is working before beginning physical service",
+                "Review service requirements with client"
             );
 
             for (String label : checklistLabels) {

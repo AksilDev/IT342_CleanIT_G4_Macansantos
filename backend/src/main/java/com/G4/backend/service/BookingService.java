@@ -116,8 +116,8 @@ public class BookingService {
 
         Booking savedBooking = bookingRepository.save(booking);
         
-        // Initialize checklist for this booking
-        initializeBookingChecklist(savedBooking);
+        // Checklist will be initialized when service starts (CONFIRMED -> IN_PROGRESS)
+        // NOT initialized at booking creation to ensure proper workflow timing
         
         // Notify all available technicians about new booking
         notificationService.notifyTechniciansNewBooking(savedBooking);
@@ -320,14 +320,21 @@ public class BookingService {
         
         validateStatusChangePermission(booking, newStatus, user);
 
-        // AC-11: Validate checklist completion before Confirmed -> In Progress
+        // AC-11 FIX: Initialize checklist when starting service (CONFIRMED -> IN_PROGRESS)
+        // Checklist should only be created when technician presses "Start Service"
         if (oldStatus == BookingStatus.CONFIRMED && newStatus == BookingStatus.IN_PROGRESS) {
+            initializeBookingChecklist(booking);
+        }
+
+        // AC-11 FIX: Validate checklist completion before completing service (IN_PROGRESS -> COMPLETED)
+        // Technician must complete all pre-service checklist items before marking service as completed
+        if (oldStatus == BookingStatus.IN_PROGRESS && newStatus == BookingStatus.COMPLETED) {
             Map<String, Object> checklistValidation = validateChecklistComplete(bookingId);
             if (!(Boolean) checklistValidation.get("isComplete")) {
                 @SuppressWarnings("unchecked")
                 List<String> incompleteItems = (List<String>) checklistValidation.get("incompleteItems");
                 throw new BookingException(
-                    "All checklist items must be completed before starting service. Missing: " + 
+                    "All pre-service checklist items must be completed before finishing service. Missing: " + 
                     String.join(", ", incompleteItems),
                     "CHECKLIST_INCOMPLETE"
                 );

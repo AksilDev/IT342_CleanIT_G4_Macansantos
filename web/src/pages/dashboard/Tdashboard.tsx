@@ -219,14 +219,15 @@ export default function Tdashboard() {
 	const handleUpdateStatus = async (bookingId: string, newStatus: string) => {
 		if (!user?.id) return;
 		
-		// AC-11: Validate checklist before Confirmed -> In Progress
-		if (newStatus === 'in_progress') {
+		// AC-11 FIX: Validate checklist before In Progress -> Completed
+		// Checklist is initialized when service starts, validated when completing
+		if (newStatus === 'completed') {
 			try {
-				const validationResponse = await api.get(`/v1/technician/bookings/${bookingId}/validate-checklist`);
-				if (!validationResponse.data.isComplete) {
-					const incompleteItems = validationResponse.data.incompleteItems || [];
+				const checklistResponse = await api.get(`/v1/technician/bookings/${bookingId}/validate-checklist`);
+				if (!checklistResponse.data.isComplete) {
+					const incompleteItems = checklistResponse.data.incompleteItems || [];
 					setError(
-						`Cannot start service. ${incompleteItems.length} checklist item(s) incomplete:\n` +
+						`Cannot complete service. ${incompleteItems.length} checklist item(s) incomplete:\n` +
 						incompleteItems.slice(0, 3).join(', ') +
 						(incompleteItems.length > 3 ? '...' : '')
 					);
