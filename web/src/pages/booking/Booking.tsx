@@ -308,7 +308,7 @@ export default function Booking() {
 					<div>
 						<div className="text-xs font-semibold text-slate-700 mb-3">Add-on Services</div>
 						{compatibleAddOns.length === 0 ? (
-							<div className="text-xs text-slate-500 text-center py-4">Loading add-ons...</div>
+							<div className="text-xs text-slate-500 text-center py-4">No add-ons</div>
 						) : (
 							<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 								{compatibleAddOns.map((addOn: AddOnService) => (

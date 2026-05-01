@@ -94,28 +94,56 @@ public class DataInitializer {
                 System.out.println("✓ Created: Cable Management (₱50)");
             }
 
+            // Create GPU Deep Cleaning and PSU Cleaning as add-ons (for Standard External Cleaning)
+            AddOn gpuDeepCleaningAddon = addOnRepository.findByName("GPU Deep Cleaning (Add-on)");
+            if (gpuDeepCleaningAddon == null) {
+                gpuDeepCleaningAddon = new AddOn("GPU Deep Cleaning (Add-on)", "Graphics card deep cleaning service", 600.0, true);
+                addOnRepository.save(gpuDeepCleaningAddon);
+                System.out.println("✓ Created: GPU Deep Cleaning Add-on (₱600)");
+            }
+
+            AddOn psuCleaningAddon = addOnRepository.findByName("PSU Cleaning (Add-on)");
+            if (psuCleaningAddon == null) {
+                psuCleaningAddon = new AddOn("PSU Cleaning (Add-on)", "Power supply cleaning service", 450.0, true);
+                addOnRepository.save(psuCleaningAddon);
+                System.out.println("✓ Created: PSU Cleaning Add-on (₱450)");
+            }
+
             // Initialize Service-Allowed-Addon Mappings (with compatibility rules)
             System.out.println("\n=== Initializing Service-Addon Compatibility ===");
             
-            // External Cleaning can have all add-ons
+            // CLEANUP: Remove all existing mappings for GPU and PSU services to ensure clean state
+            System.out.println("Cleaning up old mappings for GPU Deep Cleaning and PSU Cleaning...");
+            final Service gpuCleaningFinal = gpuCleaning;
+            final Service psuCleaningFinal = psuCleaning;
+            serviceAllowedAddonRepository.deleteAll(
+                serviceAllowedAddonRepository.findAll().stream()
+                    .filter(mapping -> 
+                        mapping.getService().getId().equals(gpuCleaningFinal.getId()) ||
+                        mapping.getService().getId().equals(psuCleaningFinal.getId())
+                    )
+                    .toList()
+            );
+            System.out.println("✓ Old mappings cleaned up");
+            
+            // Standard External Cleaning: GPU Deep cleaning, PSU cleaning, Thermal Paste, Cable Management
+            addServiceAddonMapping(serviceAllowedAddonRepository, externalCleaning, gpuDeepCleaningAddon);
+            addServiceAddonMapping(serviceAllowedAddonRepository, externalCleaning, psuCleaningAddon);
             addServiceAddonMapping(serviceAllowedAddonRepository, externalCleaning, thermalPaste);
             addServiceAddonMapping(serviceAllowedAddonRepository, externalCleaning, cableManagement);
+            System.out.println("✓ Standard External Cleaning: 4 add-ons available");
             
-            // Deep Cleaning CANNOT have GPU Cleaning or PSU Cleaning as add-ons (AC-10)
-            // Deep Cleaning can only have thermal paste and cable management
+            // Deep Internal Cleaning: Thermal Paste, Cable Management only
             addServiceAddonMapping(serviceAllowedAddonRepository, deepCleaning, thermalPaste);
             addServiceAddonMapping(serviceAllowedAddonRepository, deepCleaning, cableManagement);
-            System.out.println("ℹ Deep Cleaning: GPU/PSU Cleaning excluded (compatibility rule)");
+            System.out.println("✓ Deep Internal Cleaning: 2 add-ons available");
             
-            // GPU Cleaning can have thermal paste and cable management
-            // GPU Cleaning CANNOT have Deep Cleaning as add-on (AC-10)
+            // GPU Deep Cleaning: Thermal Paste ONLY (Cable Management removed)
             addServiceAddonMapping(serviceAllowedAddonRepository, gpuCleaning, thermalPaste);
-            addServiceAddonMapping(serviceAllowedAddonRepository, gpuCleaning, cableManagement);
-            System.out.println("ℹ GPU Cleaning: Deep Cleaning excluded (compatibility rule)");
+            System.out.println("✓ GPU Deep Cleaning: 1 add-on available (Thermal Paste only)");
             
-            // PSU Cleaning can have thermal paste and cable management
-            addServiceAddonMapping(serviceAllowedAddonRepository, psuCleaning, thermalPaste);
-            addServiceAddonMapping(serviceAllowedAddonRepository, psuCleaning, cableManagement);
+            // PSU Cleaning: NO add-ons at all
+            System.out.println("✓ PSU Cleaning: 0 add-ons available (none)");
 
             // Initialize Checklist Items (Pre-Service Only - 5 items)
             System.out.println("\n=== Initializing Pre-Service Checklist Items ===");

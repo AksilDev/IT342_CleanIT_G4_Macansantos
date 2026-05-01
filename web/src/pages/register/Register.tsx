@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { Eye, EyeOff } from 'lucide-react';
 import api from '../../api/axios';
 
 type RegisterResponse = {
@@ -12,6 +13,7 @@ export default function Register() {
 	const [name, setName] = useState('');
 	const [username, setUsername] = useState('');
 	const [password, setPassword] = useState('');
+	const [showPassword, setShowPassword] = useState(false);
 	const [contact, setContact] = useState('');
 	const [role, setRole] = useState('client');
 	const [loading, setLoading] = useState(false);
@@ -152,14 +154,28 @@ export default function Register() {
 								</div>
 								<div>
 									<label className="text-sm font-medium text-slate-700">Password</label>
-									<input
-										type="password"
-										value={password}
-										onChange={(e) => setPassword(e.target.value)}
-										placeholder="Enter your password"
-										className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
-										required
-									/>
+									<div className="relative mt-2">
+										<input
+											type={showPassword ? "text" : "password"}
+											value={password}
+											onChange={(e) => setPassword(e.target.value)}
+											placeholder="Enter your password"
+											className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 pr-10 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+											required
+										/>
+										<button
+											type="button"
+											onClick={() => setShowPassword(!showPassword)}
+											className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+											aria-label={showPassword ? "Hide password" : "Show password"}
+										>
+											{showPassword ? (
+												<EyeOff className="h-4 w-4" />
+											) : (
+												<Eye className="h-4 w-4" />
+											)}
+										</button>
+									</div>
 								</div>
 							</div>
 
