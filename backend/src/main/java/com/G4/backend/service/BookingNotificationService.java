@@ -4,6 +4,8 @@ import com.G4.backend.entity.Booking;
 import com.G4.backend.entity.User;
 import com.G4.backend.enums.BookingStatus;
 import com.G4.backend.repository.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 /**
@@ -12,6 +14,8 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class BookingNotificationService {
+
+    private static final Logger logger = LoggerFactory.getLogger(BookingNotificationService.class);
 
     private final UserRepository userRepository;
 
@@ -38,7 +42,7 @@ public class BookingNotificationService {
             }
         } catch (Exception e) {
             // Log error but don't fail the booking operation
-            System.err.println("Failed to send notification: " + e.getMessage());
+            logger.error("Failed to send notification", e);
         }
     }
 
@@ -113,8 +117,8 @@ public class BookingNotificationService {
     private void sendNotification(User user, String subject, String message) {
         // For now, just log the notification
         // In a real implementation, this would send email, SMS, or push notification
-        System.out.println("NOTIFICATION - To: " + user.getName() + " (" + user.getEmail() + 
-            "), Subject: " + subject + ", Message: " + message);
+        logger.info("NOTIFICATION - To: {} ({}), Subject: {}, Message: {}", 
+                   user.getName(), user.getEmail(), subject, message);
         
         // TODO: Implement actual notification sending
         // - Email service integration
@@ -133,10 +137,10 @@ public class BookingNotificationService {
             
             // In a real implementation, this would find all available technicians and send notifications
             // For now, just log the notification
-            System.out.println("TECHNICIAN NOTIFICATION - New booking available: " + booking.getServiceType() + 
-                " service for " + clientName + " on " + booking.getBookingDate() + ". Booking ID: " + booking.getId());
+            logger.info("TECHNICIAN NOTIFICATION - New booking available: {} service for {} on {}. Booking ID: {}", 
+                       booking.getServiceType(), clientName, booking.getBookingDate(), booking.getId());
         } catch (Exception e) {
-            System.err.println("Failed to send technician notification: " + e.getMessage());
+            logger.error("Failed to send technician notification", e);
         }
     }
 }

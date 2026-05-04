@@ -6,6 +6,8 @@ import com.G4.backend.entity.BookingPhoto;
 import com.G4.backend.repository.AddOnRepository;
 import com.G4.backend.repository.BookingPhotoRepository;
 import com.G4.backend.service.BookingService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,6 +17,8 @@ import java.util.*;
 @RequestMapping("/api/v1/bookings")
 @CrossOrigin(origins = "http://localhost:5173")
 public class BookingController {
+
+    private static final Logger logger = LoggerFactory.getLogger(BookingController.class);
 
     private final BookingService bookingService;
     private final AddOnRepository addOnRepository;
@@ -81,13 +85,13 @@ public class BookingController {
                                 // Format as "Name (₱Price)"
                                 formattedAddons.add(addon.getName() + " (₱" + String.format("%.0f", addon.getPrice()) + ")");
                             } else {
-                                // Fallback to UUID if addon not found (log warning)
-                                System.err.println("Warning: Addon not found for ID: " + addonId);
+                                // Fallback to UUID if addon not found
+                                logger.warn("Addon not found for ID: {}", addonId);
                                 formattedAddons.add(addonId.trim());
                             }
                         } catch (IllegalArgumentException e) {
                             // Invalid UUID format, skip
-                            System.err.println("Warning: Invalid addon UUID format: " + addonId);
+                            logger.warn("Invalid addon UUID format: {}", addonId);
                         }
                     }
                 }
@@ -128,8 +132,7 @@ public class BookingController {
                     map.put("technicianAssigned", true);
                     map.put("technicianId", booking.getTechnicianId());
                     
-                    // Get technician details from UserRepository
-                    // For now, we'll add a placeholder - in real implementation you'd fetch from UserRepository
+                    // Technician details are included via technicianId
                     map.put("technicianAcceptedAt", booking.getConfirmedAt());
                     map.put("acceptanceMessage", "Your booking has been accepted by a technician!");
                 } else {
@@ -153,9 +156,6 @@ public class BookingController {
                         break;
                     case CANCELLED:
                         map.put("statusMessage", "This booking has been cancelled.");
-                        break;
-                    case NO_SHOW:
-                        map.put("statusMessage", "Marked as no-show - please contact support.");
                         break;
                 }
                 

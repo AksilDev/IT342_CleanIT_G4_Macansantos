@@ -5,6 +5,8 @@ import com.G4.backend.enums.BookingStatus;
 import com.G4.backend.enums.PhotoType;
 import com.G4.backend.exception.BookingException;
 import com.G4.backend.repository.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,6 +17,8 @@ import java.util.*;
 @Service
 @Transactional
 public class BookingService {
+
+    private static final Logger logger = LoggerFactory.getLogger(BookingService.class);
 
     private final BookingRepository bookingRepository;
     private final UserRepository userRepository;
@@ -264,7 +268,7 @@ public class BookingService {
             BookingStatus.PENDING
         );
         
-        System.out.println("DEBUG: Found " + bookings.size() + " pending bookings assigned to technician " + technicianId);
+        logger.debug("Found {} pending bookings assigned to technician {}", bookings.size(), technicianId);
         
         List<Map<String, Object>> response = new ArrayList<>();
         
@@ -429,9 +433,8 @@ public class BookingService {
                 booking.setCancelledAt(LocalDateTime.now());
                 booking.setStatusReason("Cancelled due to no-show");
                 
-                System.out.println("DEBUG: NO_SHOW auto-cancelled - bookingId: " + bookingId + 
-                                 ", noShowAt: " + booking.getNoShowAt() + 
-                                 ", cancelledAt: " + booking.getCancelledAt());
+                logger.info("NO_SHOW auto-cancelled - bookingId: {}, noShowAt: {}, cancelledAt: {}", 
+                           bookingId, booking.getNoShowAt(), booking.getCancelledAt());
             }
         }
 

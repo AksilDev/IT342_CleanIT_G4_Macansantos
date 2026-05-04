@@ -1,6 +1,8 @@
 package com.G4.backend.service.observer;
 
 import com.G4.backend.entity.User;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
@@ -12,26 +14,28 @@ import org.springframework.stereotype.Component;
 @Component
 public class EmailNotificationObserver implements UserEventObserver {
     
+    private static final Logger logger = LoggerFactory.getLogger(EmailNotificationObserver.class);
+    
     @Override
     public void onUserRegistered(User user) {
         // In production: Send welcome email via email service
-        System.out.println("📧 Sending welcome email to: " + user.getEmail());
-        System.out.println("   Subject: Welcome to CleanIT, " + user.getName() + "!");
-        System.out.println("   Body: Thank you for registering. Your account has been created successfully.");
+        logger.info("📧 Sending welcome email to: {}", user.getEmail());
+        logger.info("   Subject: Welcome to CleanIT, {}!", user.getName());
+        logger.info("   Body: Thank you for registering. Your account has been created successfully.");
     }
     
     @Override
     public void onUserProfileUpdated(User user) {
         // In production: Send profile update confirmation
-        System.out.println("📧 Sending profile update confirmation to: " + user.getEmail());
-        System.out.println("   Subject: Your CleanIT profile has been updated");
+        logger.info("📧 Sending profile update confirmation to: {}", user.getEmail());
+        logger.info("   Subject: Your CleanIT profile has been updated");
     }
     
     @Override
     public void onOAuthCompleted(User user) {
         // In production: Send OAuth registration confirmation
-        System.out.println("📧 Sending OAuth completion email to: " + user.getEmail());
-        System.out.println("   Subject: Google sign-in completed for CleanIT");
-        System.out.println("   Body: Your account has been linked with Google successfully.");
+        logger.info("📧 Sending OAuth completion email to: {}", user.getEmail());
+        logger.info("   Subject: Google sign-in completed for CleanIT");
+        logger.info("   Body: Your account has been linked with Google successfully.");
     }
 }
