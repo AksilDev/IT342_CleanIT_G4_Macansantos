@@ -27,7 +27,8 @@ public class DataInitializer {
             ServiceRepository serviceRepository,
             AddOnRepository addOnRepository,
             ServiceAllowedAddonRepository serviceAllowedAddonRepository,
-            ChecklistItemRepository checklistItemRepository) {
+            ChecklistItemRepository checklistItemRepository,
+            BookingChecklistRepository bookingChecklistRepository) {
         return args -> {
             // Initialize Admin Account
             if (!userRepository.existsByEmail(adminConfig.getAdminEmail())) {
@@ -147,26 +148,33 @@ public class DataInitializer {
 
             // Initialize Checklist Items (Pre-Service Only - 5 items)
             System.out.println("\n=== Initializing Pre-Service Checklist Items ===");
+            
+            // Clean up old booking checklist entries first (to avoid foreign key constraint)
+            List<BookingChecklist> oldBookingChecklists = bookingChecklistRepository.findAll();
+            if (!oldBookingChecklists.isEmpty()) {
+                bookingChecklistRepository.deleteAll(oldBookingChecklists);
+                System.out.println("✓ Cleaned up " + oldBookingChecklists.size() + " old booking checklist entries");
+            }
+            
+            // Now clean up old checklist items
+            List<ChecklistItem> oldItems = checklistItemRepository.findAll();
+            if (!oldItems.isEmpty()) {
+                checklistItemRepository.deleteAll(oldItems);
+                System.out.println("✓ Cleaned up " + oldItems.size() + " old checklist items");
+            }
+            
             List<String> checklistLabels = Arrays.asList(
                 "Verify location is valid and searchable",
                 "Inspect tools for service are clean and working",
                 "Client available and gives consent",
-                "Test device is working before beginning physical service",
-                "Review service requirements with client"
+                "Inspect unit for physical damages",
+                "Take a photo of unit before service starts"
             );
 
             for (String label : checklistLabels) {
-                ChecklistItem existing = checklistItemRepository.findAll()
-                    .stream()
-                    .filter(item -> item.getLabel().equals(label))
-                    .findFirst()
-                    .orElse(null);
-                
-                if (existing == null) {
-                    ChecklistItem item = new ChecklistItem(label, true);
-                    checklistItemRepository.save(item);
-                    System.out.println("✓ Created: " + label);
-                }
+                ChecklistItem item = new ChecklistItem(label, true);
+                checklistItemRepository.save(item);
+                System.out.println("✓ Created: " + label);
             }
 
             System.out.println("\n=== Data Initialization Complete ===\n");

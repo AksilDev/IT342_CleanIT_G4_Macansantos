@@ -420,13 +420,28 @@ public class BookingService {
             case IN_PROGRESS -> booking.setStartedAt(LocalDateTime.now());
             case COMPLETED -> booking.setCompletedAt(LocalDateTime.now());
             case CANCELLED -> booking.setCancelledAt(LocalDateTime.now());
-            case NO_SHOW -> booking.setNoShowAt(LocalDateTime.now());
+            case NO_SHOW -> {
+                booking.setNoShowAt(LocalDateTime.now());
+                
+                // BUG FIX 3: Auto-cancel booking when marked as NO_SHOW
+                // Immediately transition to CANCELLED status
+                booking.setStatus(BookingStatus.CANCELLED);
+                booking.setCancelledAt(LocalDateTime.now());
+                booking.setStatusReason("Cancelled due to no-show");
+                
+                System.out.println("DEBUG: NO_SHOW auto-cancelled - bookingId: " + bookingId + 
+                                 ", noShowAt: " + booking.getNoShowAt() + 
+                                 ", cancelledAt: " + booking.getCancelledAt());
+            }
         }
 
         Booking savedBooking = bookingRepository.save(booking);
         
         // Send notifications about status change
-        notificationService.notifyStatusChange(savedBooking, newStatus, reason);
+        // For NO_SHOW, notify as CANCELLED (since we auto-transitioned)
+        BookingStatus notificationStatus = (newStatus == BookingStatus.NO_SHOW) ? BookingStatus.CANCELLED : newStatus;
+        String notificationReason = (newStatus == BookingStatus.NO_SHOW) ? "Cancelled due to no-show" : reason;
+        notificationService.notifyStatusChange(savedBooking, notificationStatus, notificationReason);
         
         return savedBooking;
     }

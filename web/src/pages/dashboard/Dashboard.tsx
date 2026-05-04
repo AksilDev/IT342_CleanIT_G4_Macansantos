@@ -26,6 +26,13 @@ interface Booking {
 	technicianName?: string;
 	technicianContact?: string;
 	createdAt: string;
+	photos?: Array<{
+		id: string;
+		type: 'BEFORE' | 'AFTER';
+		fileUrl: string;
+		uploadedAt: string;
+	}>;
+	statusReason?: string;
 }
 
 interface Service {
@@ -485,6 +492,26 @@ export default function Dashboard() {
 							</button>
 						</div>
 						
+						{/* BUG FIX 3: NO_SHOW notification banner */}
+						{selectedBooking.status === 'cancelled' && selectedBooking.statusReason && 
+						 (selectedBooking.statusReason.toLowerCase().includes('no-show') || 
+						  selectedBooking.statusReason.toLowerCase().includes('no show')) && (
+							<div className="mb-4 rounded-lg bg-amber-50 border border-amber-200 p-4">
+								<div className="flex items-start gap-3">
+									<AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+									<div>
+										<div className="text-sm font-semibold text-amber-900 mb-1">
+											Booking Cancelled - No Show
+										</div>
+										<div className="text-xs text-amber-700">
+											This booking was cancelled because you were not available at the scheduled time (no-show). 
+											Please contact support if you have questions.
+										</div>
+									</div>
+								</div>
+							</div>
+						)}
+						
 						<div className="space-y-4">
 							<div className="rounded-lg bg-violet-50 p-3">
 								<div className="text-xs text-slate-500">Service</div>
@@ -552,6 +579,62 @@ export default function Dashboard() {
 										</div>
 									</div>
 								)}
+							
+							{/* BUG FIX 2: Display before/after photos */}
+							{selectedBooking.photos && selectedBooking.photos.length > 0 && (
+								<div className="rounded-lg border border-slate-200 p-4">
+									<div className="text-sm font-semibold text-slate-900 mb-3">Before/After Photos</div>
+									<div className="grid grid-cols-2 gap-4">
+										{/* Before Photos */}
+										<div>
+											<div className="text-xs font-medium text-slate-600 mb-2">Before Service</div>
+											<div className="space-y-2">
+												{selectedBooking.photos
+													.filter(photo => photo.type === 'BEFORE')
+													.map((photo) => (
+														<div key={photo.id} className="relative">
+															<img
+																src={photo.fileUrl}
+																alt="Before service"
+																className="w-full h-32 object-cover rounded-lg border border-slate-200"
+															/>
+															<div className="text-xs text-slate-500 mt-1">
+																{new Date(photo.uploadedAt).toLocaleString()}
+															</div>
+														</div>
+													))}
+												{selectedBooking.photos.filter(p => p.type === 'BEFORE').length === 0 && (
+													<div className="text-xs text-slate-400 italic">No before photos</div>
+												)}
+											</div>
+										</div>
+										
+										{/* After Photos */}
+										<div>
+											<div className="text-xs font-medium text-slate-600 mb-2">After Service</div>
+											<div className="space-y-2">
+												{selectedBooking.photos
+													.filter(photo => photo.type === 'AFTER')
+													.map((photo) => (
+														<div key={photo.id} className="relative">
+															<img
+																src={photo.fileUrl}
+																alt="After service"
+																className="w-full h-32 object-cover rounded-lg border border-slate-200"
+															/>
+															<div className="text-xs text-slate-500 mt-1">
+																{new Date(photo.uploadedAt).toLocaleString()}
+															</div>
+														</div>
+													))}
+												{selectedBooking.photos.filter(p => p.type === 'AFTER').length === 0 && (
+													<div className="text-xs text-slate-400 italic">No after photos</div>
+												)}
+											</div>
+										</div>
+									</div>
+								</div>
+							)}
 							
 							{selectedBooking.specialInstructions && (
 								<div className="rounded-lg bg-amber-50 p-3">
