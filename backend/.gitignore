@@ -33,8 +33,10 @@ build/
 .vscode/
 
 ### Environment variables ###
-!.env
-!.env.example
+.env
+.env.local
+.env.*.local
+.env.example
 
 
 web/dist
