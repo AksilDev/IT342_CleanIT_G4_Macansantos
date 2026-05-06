@@ -485,6 +485,19 @@ public class BookingService {
     public Map<String, Object> getBookingStatistics() {
         Map<String, Object> stats = new HashMap<>();
         
+        // Active bookings: PENDING + CONFIRMED + IN_PROGRESS
+        List<BookingStatus> activeStatuses = Arrays.asList(
+            BookingStatus.PENDING, 
+            BookingStatus.CONFIRMED, 
+            BookingStatus.IN_PROGRESS
+        );
+        long activeBookings = bookingRepository.countByStatusIn(activeStatuses);
+        stats.put("activeBookings", activeBookings);
+        
+        // Confirmed bookings only
+        long confirmedBookings = bookingRepository.countByStatus(BookingStatus.CONFIRMED);
+        stats.put("confirmedBookings", confirmedBookings);
+        
         // Count bookings by status
         for (BookingStatus status : BookingStatus.values()) {
             long count = bookingRepository.countByStatus(status);
@@ -829,11 +842,63 @@ public class BookingService {
      * Initialize checklist for a new booking
      */
     private void initializeBookingChecklist(Booking booking) {
-        List<ChecklistItem> allItems = checklistItemRepository.findByIsActiveTrue();
-        
-        for (ChecklistItem item : allItems) {
-            BookingChecklist bookingChecklist = new BookingChecklist(booking, item);
-            bookingChecklistRepository.save(bookingChecklist);
+        try {
+            logger.info("Initializing checklist for booking {}, querying active checklist items...", booking.getId());
+            
+            // Diagnostic: Check total ChecklistItem count
+            long totalChecklistItems = checklistItemRepository.count();
+            logger.info("Total ChecklistItem records in database: {}", totalChecklistItems);
+            
+            // Verification: Warn if no ChecklistItem records exist
+            if (totalChecklistItems == 0) {
+                logger.error("WARNING: No ChecklistItem records found in database. Checklist initialization will fail. " +
+                    "DataInitializer may not have run or persistence failed.");
+                throw new BookingException(
+                    "Checklist initialization failed: No checklist items configured in system",
+                    "CHECKLIST_INIT_FAILED"
+                );
+            }
+            
+            List<ChecklistItem> allItems = checklistItemRepository.findByIsActiveTrue();
+            logger.info("Found {} active checklist items", allItems.size());
+            
+            // Verification: Warn if no active items found
+            if (allItems.isEmpty()) {
+                logger.error("WARNING: No active ChecklistItem records found. Total records: {}, Active records: 0. " +
+                    "ChecklistItem.isActive may be set to false.", totalChecklistItems);
+                throw new BookingException(
+                    "Checklist initialization failed: No active checklist items available",
+                    "CHECKLIST_INIT_FAILED"
+                );
+            }
+            
+            // Log details of each checklist item found
+            for (ChecklistItem item : allItems) {
+                logger.debug("  - ChecklistItem: {} (id={}, isActive={})", 
+                    item.getLabel(), item.getId(), item.getIsActive());
+            }
+            
+            int createdCount = 0;
+            for (ChecklistItem item : allItems) {
+                BookingChecklist bookingChecklist = new BookingChecklist(booking, item);
+                bookingChecklistRepository.save(bookingChecklist);
+                createdCount++;
+            }
+            
+            // Explicit flush to ensure records are persisted
+            bookingChecklistRepository.flush();
+            
+            logger.info("Created {} BookingChecklist records for booking {}", createdCount, booking.getId());
+            
+        } catch (BookingException e) {
+            // Re-throw BookingException as-is
+            throw e;
+        } catch (Exception e) {
+            logger.error("Failed to initialize checklist for booking {}", booking.getId(), e);
+            throw new BookingException(
+                "Failed to initialize checklist: " + e.getMessage(),
+                "CHECKLIST_INIT_FAILED"
+            );
         }
     }
 

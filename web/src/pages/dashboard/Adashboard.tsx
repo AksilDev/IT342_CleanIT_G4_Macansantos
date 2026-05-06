@@ -13,12 +13,43 @@ interface User {
 	verified?: boolean;
 }
 
+interface Statistics {
+	activeBookings: number;
+	confirmedBookings: number;
+	pending: number;
+	in_progress: number;
+	completed: number;
+	cancelled: number;
+	total: number;
+	today: number;
+	thisWeek: number;
+	thisMonth: number;
+	totalRevenue: number;
+	monthRevenue: number;
+}
+
 export default function Adashboard() {
 	const navigate = useNavigate();
 	const [pendingUsers, setPendingUsers] = useState<User[]>([]);
 	const [selectedUser, setSelectedUser] = useState<User | null>(null);
 	const [loading, setLoading] = useState(false);
 	const [fetchLoading, setFetchLoading] = useState(true);
+	const [statistics, setStatistics] = useState<Statistics>({
+		activeBookings: 0,
+		confirmedBookings: 0,
+		pending: 0,
+		in_progress: 0,
+		completed: 0,
+		cancelled: 0,
+		total: 0,
+		today: 0,
+		thisWeek: 0,
+		thisMonth: 0,
+		totalRevenue: 0,
+		monthRevenue: 0
+	});
+	const [statsLoading, setStatsLoading] = useState(true);
+	const [statsError, setStatsError] = useState<string | null>(null);
 
 	const user = React.useMemo(() => {
 		try {
@@ -42,6 +73,11 @@ export default function Adashboard() {
 			try {
 				setFetchLoading(true);
 				const response = await api.get('/v1/admin/pending-verifications');
+				console.log('Pending users response:', response.data);
+				// Log imageUrl for each user for debugging
+				response.data.forEach((user: User) => {
+					console.log(`User ${user.name} imageUrl:`, user.imageUrl);
+				});
 				setPendingUsers(response.data);
 			} catch (err) {
 				console.error('Failed to fetch pending users:', err);
@@ -52,6 +88,27 @@ export default function Adashboard() {
 		
 		if (user && user.role === 'admin') {
 			fetchPendingUsers();
+		}
+	}, [user]);
+
+	// Fetch booking statistics from backend
+	useEffect(() => {
+		const fetchStatistics = async () => {
+			try {
+				setStatsLoading(true);
+				setStatsError(null);
+				const response = await api.get('/v1/admin/dashboard/statistics');
+				setStatistics(response.data);
+			} catch (err) {
+				console.error('Failed to fetch statistics:', err);
+				setStatsError('Failed to load statistics');
+			} finally {
+				setStatsLoading(false);
+			}
+		};
+		
+		if (user && user.role === 'admin') {
+			fetchStatistics();
 		}
 	}, [user]);
 
@@ -106,13 +163,13 @@ export default function Adashboard() {
 		},
 		{
 			title: 'Active Bookings',
-			value: 0,
+			value: statsLoading ? '...' : statistics.activeBookings,
 			icon: '🕐',
 			dotColor: 'bg-blue-500'
 		},
 		{
-			title: 'Confirmed Upcoming Bookings',
-			value: 0,
+			title: 'Confirmed Bookings',
+			value: statsLoading ? '...' : statistics.confirmedBookings,
 			icon: '📅',
 			dotColor: 'bg-green-500'
 		}
@@ -156,6 +213,11 @@ export default function Adashboard() {
 
 				{/* Stats Cards */}
 				<div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+					{statsError && (
+						<div className="col-span-full rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+							{statsError}
+						</div>
+					)}
 					{stats.map((stat) => (
 						<div key={stat.title} className="rounded-xl border border-gray-100 bg-white p-5 shadow-md">
 							<div className="flex items-start justify-between">
@@ -271,17 +333,39 @@ export default function Adashboard() {
 								{/* ID Image */}
 								<div>
 									<h4 className="font-semibold text-slate-900 mb-2">Submitted ID Document</h4>
+									{/* Debug info */}
+									{selectedUser.imageUrl && (
+										<div className="mb-2 rounded bg-slate-100 p-2 text-xs">
+											<span className="font-mono text-slate-600">Image URL: {selectedUser.imageUrl}</span>
+										</div>
+									)}
 									{selectedUser.imageUrl ? (
-										<div className="rounded-lg border border-slate-200 overflow-hidden">
+										<div className="rounded-lg border border-slate-200 overflow-hidden bg-slate-50">
 											<img
 												src={selectedUser.imageUrl}
 												alt="User ID Document"
 												className="w-full h-auto max-h-96 object-contain"
+												onError={(e) => {
+													// If image fails to load, show error message
+													const target = e.target as HTMLImageElement;
+													target.style.display = 'none';
+													const parent = target.parentElement;
+													if (parent) {
+														parent.innerHTML = `
+															<div class="p-8 text-center">
+																<p class="text-slate-500 mb-2">⚠️ Unable to load image</p>
+																<p class="text-xs text-slate-400">URL: ${selectedUser.imageUrl}</p>
+																<p class="text-xs text-slate-400 mt-2">The image may be stored in Supabase storage. Please check the URL or upload a new image.</p>
+															</div>
+														`;
+													}
+												}}
 											/>
 										</div>
 									) : (
 										<div className="rounded-lg border border-slate-200 bg-slate-50 p-8 text-center">
 											<p className="text-slate-500">No ID image submitted</p>
+											<p className="text-xs text-slate-400 mt-1">User registered without uploading an ID document</p>
 										</div>
 									)}
 								</div>

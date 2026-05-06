@@ -18,6 +18,7 @@ public class BookingPhoto {
 
     @ManyToOne
     @JoinColumn(name = "booking_id", insertable = false, updatable = false)
+    @org.hibernate.annotations.OnDelete(action = org.hibernate.annotations.OnDeleteAction.CASCADE)
     private Booking booking;
 
     @Enumerated(EnumType.STRING)

@@ -45,6 +45,7 @@ public class BookingChecklist {
     @ManyToOne
     @MapsId("bookingId")
     @JoinColumn(name = "booking_id")
+    @org.hibernate.annotations.OnDelete(action = org.hibernate.annotations.OnDeleteAction.CASCADE)
     private Booking booking;
 
     @ManyToOne

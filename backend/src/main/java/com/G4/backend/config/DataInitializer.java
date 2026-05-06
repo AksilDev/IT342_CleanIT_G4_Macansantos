@@ -185,10 +185,28 @@ public class DataInitializer {
                 "Take a photo of unit before service starts"
             );
 
-            for (String label : checklistLabels) {
-                ChecklistItem item = new ChecklistItem(label, true);
-                checklistItemRepository.save(item);
-                logger.info("✓ Created: {}", label);
+            try {
+                for (String label : checklistLabels) {
+                    ChecklistItem item = new ChecklistItem(label, true);
+                    checklistItemRepository.save(item);
+                    logger.info("✓ Created: {}", label);
+                }
+                
+                // Verification: Confirm ChecklistItem records were persisted correctly
+                checklistItemRepository.flush();
+                List<ChecklistItem> verificationItems = checklistItemRepository.findByIsActiveTrue();
+                logger.info("Verification: Found {} active checklist items after initialization", verificationItems.size());
+                
+                if (verificationItems.size() != checklistLabels.size()) {
+                    logger.error("ERROR: Expected {} active checklist items but found {}. Persistence may have failed!", 
+                        checklistLabels.size(), verificationItems.size());
+                    throw new RuntimeException("ChecklistItem persistence verification failed: expected " + 
+                        checklistLabels.size() + " items but found " + verificationItems.size());
+                }
+                
+            } catch (Exception e) {
+                logger.error("CRITICAL ERROR: Failed to initialize ChecklistItem records", e);
+                throw new RuntimeException("DataInitializer failed to create ChecklistItem records", e);
             }
 
             logger.info("\n=== Data Initialization Complete ===\n");

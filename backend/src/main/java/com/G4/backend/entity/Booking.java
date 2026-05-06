@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -93,6 +94,15 @@ public class Booking {
 
     @Column
     private Double estimatedDuration; // in hours
+
+    @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<BookingPhoto> photos;
+
+    @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<BookingChecklist> checklistItems;
+
+    @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<BookingAddon> addons;
 
     @PrePersist
     protected void onCreate() {
@@ -334,5 +344,29 @@ public class Booking {
 
     public void setEstimatedDuration(Double estimatedDuration) {
         this.estimatedDuration = estimatedDuration;
+    }
+
+    public List<BookingPhoto> getPhotos() {
+        return photos;
+    }
+
+    public void setPhotos(List<BookingPhoto> photos) {
+        this.photos = photos;
+    }
+
+    public List<BookingChecklist> getChecklistItems() {
+        return checklistItems;
+    }
+
+    public void setChecklistItems(List<BookingChecklist> checklistItems) {
+        this.checklistItems = checklistItems;
+    }
+
+    public List<BookingAddon> getAddons() {
+        return addons;
+    }
+
+    public void setAddons(List<BookingAddon> addons) {
+        this.addons = addons;
     }
 }

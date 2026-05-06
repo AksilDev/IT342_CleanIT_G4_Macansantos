@@ -42,6 +42,10 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
     
     // Admin dashboard statistics
     long countByStatus(BookingStatus status);
+    
+    @Query("SELECT COUNT(b) FROM Booking b WHERE b.status IN :statuses")
+    long countByStatusIn(@Param("statuses") List<BookingStatus> statuses);
+    
     long countByBookingDate(LocalDate bookingDate);
     long countByBookingDateBetween(LocalDate startDate, LocalDate endDate);
     

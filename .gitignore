@@ -8,5 +8,25 @@ node_modules/
 **/.env
 **/.env.local
 
+# IDE and editor folders
+.idea/
+.vscode/
+**/.idea/
+**/.vscode/
+
+# Uploaded files (user data)
+backend/uploads/
+**/uploads/
+
+# Build outputs
+**/dist/
+**/target/
+
+# Temporary documentation files
+CLEANUP_ACTIONS.md
+CLEANUP_COMPLETE.md
+COMMIT_GUIDE.md
+SYSTEM_AUDIT_REPORT.md
+
 # Kiro AI assistant spec files (local development only)
 .kiro/
