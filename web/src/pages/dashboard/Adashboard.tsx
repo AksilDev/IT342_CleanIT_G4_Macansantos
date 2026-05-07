@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../api/axios';
+import BookingDetailsModal from '../../components/BookingDetailsModal';
 
 interface User {
 	id: string;
@@ -50,6 +51,12 @@ export default function Adashboard() {
 	});
 	const [statsLoading, setStatsLoading] = useState(true);
 	const [statsError, setStatsError] = useState<string | null>(null);
+
+	// Modal state for booking drill-down
+	const [modalOpen, setModalOpen] = useState(false);
+	const [modalTitle, setModalTitle] = useState('');
+	const [modalStatuses, setModalStatuses] = useState<string[]>([]);
+	const [modalInitialCount, setModalInitialCount] = useState(0);
 
 	const user = React.useMemo(() => {
 		try {
@@ -148,30 +155,47 @@ export default function Adashboard() {
 		}
 	};
 
+	const handleCardClick = (title: string, statuses: string[], count: number) => {
+		setModalTitle(title);
+		setModalStatuses(statuses);
+		setModalInitialCount(count);
+		setModalOpen(true);
+	};
+
+	const handleModalClose = () => {
+		setModalOpen(false);
+	};
+
 	const stats = [
 		{
 			title: 'Pending User Verifications',
 			value: pendingUsers.filter(u => u.role === 'client').length,
 			icon: '👤',
-			dotColor: 'bg-red-500'
+			dotColor: 'bg-red-500',
+			clickable: false
 		},
 		{
 			title: 'Pending Technician Approvals',
 			value: pendingUsers.filter(u => u.role === 'technician').length,
 			icon: '👥',
-			dotColor: 'bg-orange-500'
+			dotColor: 'bg-orange-500',
+			clickable: false
 		},
 		{
 			title: 'Active Bookings',
 			value: statsLoading ? '...' : statistics.activeBookings,
 			icon: '🕐',
-			dotColor: 'bg-blue-500'
+			dotColor: 'bg-blue-500',
+			clickable: true,
+			statuses: ['pending', 'confirmed', 'in_progress']
 		},
 		{
 			title: 'Confirmed Bookings',
 			value: statsLoading ? '...' : statistics.confirmedBookings,
 			icon: '📅',
-			dotColor: 'bg-green-500'
+			dotColor: 'bg-green-500',
+			clickable: true,
+			statuses: ['confirmed']
 		}
 	];
 
@@ -219,7 +243,28 @@ export default function Adashboard() {
 						</div>
 					)}
 					{stats.map((stat) => (
-						<div key={stat.title} className="rounded-xl border border-gray-100 bg-white p-5 shadow-md">
+						<div
+							key={stat.title}
+							className={`rounded-xl border border-gray-100 bg-white p-5 shadow-md ${
+								stat.clickable ? 'cursor-pointer hover:shadow-lg transition-shadow' : ''
+							}`}
+							onClick={() => {
+								if (stat.clickable && stat.statuses && typeof stat.value === 'number') {
+									handleCardClick(stat.title, stat.statuses, stat.value);
+								}
+							}}
+							onKeyDown={(e) => {
+								if (stat.clickable && (e.key === 'Enter' || e.key === ' ')) {
+									e.preventDefault();
+									if (stat.statuses && typeof stat.value === 'number') {
+										handleCardClick(stat.title, stat.statuses, stat.value);
+									}
+								}
+							}}
+							tabIndex={stat.clickable ? 0 : undefined}
+							role={stat.clickable ? 'button' : undefined}
+							aria-label={stat.clickable ? `View ${stat.title} details` : undefined}
+						>
 							<div className="flex items-start justify-between">
 								<div className="flex h-10 w-10 items-center justify-center rounded-lg bg-violet-100 text-lg">
 									{stat.icon}
@@ -391,6 +436,15 @@ export default function Adashboard() {
 						</div>
 					</div>
 				)}
+
+				{/* Booking Details Modal */}
+				<BookingDetailsModal
+					isOpen={modalOpen}
+					onClose={handleModalClose}
+					title={modalTitle}
+					statuses={modalStatuses}
+					initialCount={modalInitialCount}
+				/>
 			</main>
 		</div>
 	);

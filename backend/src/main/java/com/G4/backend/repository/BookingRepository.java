@@ -65,4 +65,7 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
     
     // All bookings ordered by creation date
     List<Booking> findAllByOrderByCreatedAtDesc();
+    
+    // Find bookings by multiple statuses, ordered by creation date descending
+    List<Booking> findByStatusInOrderByCreatedAtDesc(List<BookingStatus> statuses);
 }

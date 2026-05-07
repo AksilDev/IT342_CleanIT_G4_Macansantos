@@ -122,6 +122,132 @@ public class AdminController {
     }
 
     /**
+     * Get bookings filtered by multiple statuses for admin drill-down
+     * Used for statistics card drill-down functionality
+     * 
+     * @param statuses Comma-separated list of status values (e.g., "pending,confirmed,in_progress")
+     * @return JSON response with bookings array, count, and statuses
+     */
+    @GetMapping("/bookings/by-status")
+    public ResponseEntity<?> getBookingsByStatuses(@RequestParam String statuses) {
+        try {
+            // Parse comma-separated statuses into list
+            String[] statusArray = statuses.split(",");
+            List<com.G4.backend.enums.BookingStatus> statusList = new ArrayList<>();
+            
+            // Validate and convert each status string to BookingStatus enum
+            for (String statusStr : statusArray) {
+                try {
+                    com.G4.backend.enums.BookingStatus bookingStatus = 
+                        com.G4.backend.enums.BookingStatus.fromValue(statusStr.trim());
+                    statusList.add(bookingStatus);
+                } catch (IllegalArgumentException e) {
+                    return ResponseEntity.badRequest().body(Map.of(
+                        "error", "Invalid status",
+                        "message", "Unknown status: '" + statusStr.trim() + "'"
+                    ));
+                }
+            }
+            
+            // Fetch bookings with complete details
+            List<Map<String, Object>> bookings = bookingService.getBookingsByStatuses(statusList);
+            
+            // Build response
+            Map<String, Object> response = new HashMap<>();
+            response.put("bookings", bookings);
+            response.put("count", bookings.size());
+            response.put("statuses", statusArray);
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "error", "Failed to fetch bookings",
+                "message", e.getMessage()
+            ));
+        }
+    }
+
+    /**
+     * Void/Terminate a booking (admin only)
+     * Cancels the booking with a reason indicating admin termination
+     * 
+     * @param bookingId The ID of the booking to void
+     * @return Success message or error
+     */
+    @PostMapping("/bookings/{bookingId}/void")
+    public ResponseEntity<?> voidBooking(@PathVariable UUID bookingId) {
+        System.out.println("DEBUG: Void booking endpoint called for bookingId: " + bookingId);
+        
+        try {
+            // Get current user email from Spring Security context
+            org.springframework.security.core.Authentication authentication = 
+                org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+            
+            System.out.println("DEBUG: Authentication object: " + authentication);
+            System.out.println("DEBUG: Is authenticated: " + (authentication != null && authentication.isAuthenticated()));
+            
+            if (authentication == null || !authentication.isAuthenticated()) {
+                System.out.println("ERROR: User not authenticated");
+                return ResponseEntity.status(401).body(Map.of(
+                    "error", "Unauthorized",
+                    "message", "User not authenticated"
+                ));
+            }
+            
+            // Get the User object from the principal (set by JwtAuthenticationFilter)
+            com.G4.backend.entity.User admin = (com.G4.backend.entity.User) authentication.getPrincipal();
+            System.out.println("DEBUG: Admin email from authentication: " + admin.getEmail());
+            
+            System.out.println("DEBUG: Admin user found - ID: " + admin.getId() + ", Role: " + admin.getRole());
+            
+            // Verify user is admin
+            if (!"admin".equals(admin.getRole())) {
+                System.out.println("ERROR: User is not admin, role: " + admin.getRole());
+                return ResponseEntity.status(403).body(Map.of(
+                    "error", "Forbidden",
+                    "message", "Only administrators can void bookings"
+                ));
+            }
+            
+            System.out.println("DEBUG: Calling cancelBooking with bookingId: " + bookingId + ", adminId: " + admin.getId());
+            
+            // Cancel the booking with admin termination reason
+            String reason = "Booking voided/terminated by administrator";
+            com.G4.backend.entity.Booking cancelledBooking = bookingService.cancelBooking(
+                bookingId, 
+                admin.getId(), 
+                reason
+            );
+            
+            System.out.println("DEBUG: Booking cancelled successfully - Code: " + cancelledBooking.getBookingCode());
+            
+            return ResponseEntity.ok(Map.of(
+                "message", "Booking successfully voided",
+                "bookingId", bookingId,
+                "bookingCode", cancelledBooking.getBookingCode(),
+                "status", "cancelled",
+                "reason", reason
+            ));
+        } catch (com.G4.backend.exception.BookingException e) {
+            System.out.println("ERROR: BookingException - " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body(Map.of(
+                "error", "Booking error",
+                "message", e.getMessage(),
+                "code", e.getErrorCode() != null ? e.getErrorCode() : "UNKNOWN"
+            ));
+        } catch (Exception e) {
+            System.out.println("ERROR: Unexpected exception - " + e.getMessage());
+            e.printStackTrace(); // Log the full error for debugging
+            return ResponseEntity.badRequest().body(Map.of(
+                "error", "Failed to void booking",
+                "message", e.getMessage(),
+                "type", e.getClass().getSimpleName()
+            ));
+        }
+    }
+
+    /**
      * Get dashboard overview with key metrics
      */
     @GetMapping("/dashboard/overview")

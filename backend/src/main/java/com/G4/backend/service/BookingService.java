@@ -616,6 +616,28 @@ public class BookingService {
     }
 
     /**
+     * Get bookings filtered by multiple statuses with complete details
+     * Used for admin dashboard drill-down functionality
+     * 
+     * @param statuses List of BookingStatus values to filter by
+     * @return List of booking maps with complete details including client and technician information
+     */
+    public List<Map<String, Object>> getBookingsByStatuses(List<BookingStatus> statuses) {
+        // Query bookings matching any of the provided statuses
+        List<Booking> bookings = bookingRepository.findByStatusInOrderByCreatedAtDesc(statuses);
+        List<Map<String, Object>> response = new ArrayList<>();
+        
+        // Transform each booking to response map with complete details
+        for (Booking booking : bookings) {
+            // Admin can see all details including addresses
+            Map<String, Object> map = createBookingResponseMap(booking, true);
+            response.add(map);
+        }
+        
+        return response;
+    }
+
+    /**
      * Create response map with booking and user details
      */
     private Map<String, Object> createBookingResponseMap(Booking booking, boolean includeAddress) {
