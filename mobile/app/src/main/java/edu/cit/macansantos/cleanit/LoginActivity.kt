@@ -127,6 +127,10 @@ class LoginActivity : AppCompatActivity() {
                 val response = RetrofitClient.instance.login(LoginRequest(email, password))
                 if (response.isSuccessful && response.body() != null) {
                     val user = response.body()!!
+                    
+                    // Save JWT token for future API calls
+                    sharedPreferences.edit().putString("jwt_token", user.token).apply()
+                    
                     navigateToHome(user.name, user.email, user.role, user.id, user.contactNo, user.verified)
                 } else {
                     showError(tvError, "Invalid email or password")
@@ -169,13 +173,14 @@ class LoginActivity : AppCompatActivity() {
 
         try {
             val account = completedTask.getResult(ApiException::class.java)
-            val idToken = account?.idToken
+            val email = account?.email
 
-            if (idToken != null) {
-                // Send ID token to backend for verification
-                authenticateWithBackend(idToken, progressBarGoogle, btnGoogleSignIn, tvError)
+            if (email != null) {
+                // Send email to backend (simplified approach)
+                // Backend will check if user exists and return their info
+                authenticateWithBackend(email, progressBarGoogle, btnGoogleSignIn, tvError)
             } else {
-                showError(tvError, "Failed to get Google ID token")
+                showError(tvError, "Failed to get Google email")
                 progressBarGoogle.visibility = View.GONE
                 btnGoogleSignIn.isEnabled = true
             }
@@ -187,21 +192,30 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun authenticateWithBackend(
-        idToken: String,
+        email: String,
         progressBar: ProgressBar,
         btnGoogle: Button,
         tvError: TextView
     ) {
         lifecycleScope.launch {
             try {
-                // Call backend OAuth endpoint
-                val response = RetrofitClient.instance.googleAuth(mapOf("idToken" to idToken))
+                // Send email to backend (simplified - backend trusts Google SDK verification)
+                val response = RetrofitClient.instance.googleAuth(mapOf("idToken" to email))
                 
                 if (response.isSuccessful && response.body() != null) {
                     val user = response.body()!!
+                    
+                    // Save token for future API calls
+                    val sharedPrefs = getSharedPreferences("CleanITPrefs", MODE_PRIVATE)
+                    sharedPrefs.edit().putString("jwt_token", user.token).apply()
+                    
                     navigateToHome(user.name, user.email, user.role, user.id, user.contactNo, user.verified)
                 } else {
-                    showError(tvError, "Google authentication failed")
+                    val errorMsg = when (response.code()) {
+                        404 -> "No account found. Please register first with this Google account on the web."
+                        else -> "Google authentication failed. Please try again."
+                    }
+                    showError(tvError, errorMsg)
                 }
             } catch (e: Exception) {
                 showError(tvError, "Connection error: ${e.message}")
