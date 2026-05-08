@@ -62,7 +62,11 @@ class RegisterActivity : AppCompatActivity() {
                             val user = loginResponse.body()!!
                             startActivity(Intent(this@RegisterActivity, HomeActivity::class.java)
                                 .putExtra("name", user.name)
-                                .putExtra("role", user.role))
+                                .putExtra("email", user.email)
+                                .putExtra("role", user.role)
+                                .putExtra("userId", user.id)
+                                .putExtra("contact", user.contactNo ?: "")
+                                .putExtra("verified", user.verified ?: false))
                             finish()
                         } else {
                             // fallback to login screen

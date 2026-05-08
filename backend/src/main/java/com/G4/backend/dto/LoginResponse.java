@@ -1,6 +1,7 @@
 package com.G4.backend.dto;
 
 public class LoginResponse {
+    private String id;
     private String name;
     private String email;
     private String role;
@@ -12,6 +13,9 @@ public class LoginResponse {
     public LoginResponse() {}
 
     // Getters and Setters
+    public String getId() { return id; }
+    public void setId(String id) { this.id = id; }
+
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
 
@@ -37,6 +41,7 @@ public class LoginResponse {
     public static class Builder {
         private final LoginResponse response = new LoginResponse();
 
+        public Builder id(String id) { response.setId(id); return this; }
         public Builder name(String name) { response.setName(name); return this; }
         public Builder email(String email) { response.setEmail(email); return this; }
         public Builder role(String role) { response.setRole(role); return this; }

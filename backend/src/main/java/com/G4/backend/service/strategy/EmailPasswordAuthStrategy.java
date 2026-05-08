@@ -40,6 +40,7 @@ public class EmailPasswordAuthStrategy implements AuthenticationStrategy {
         String token = jwtService.generateToken(user.getEmail(), user.getRole());
         
         return new LoginResponse.Builder()
+                .id(user.getId().toString())
                 .name(user.getName())
                 .email(user.getEmail())
                 .role(user.getRole())

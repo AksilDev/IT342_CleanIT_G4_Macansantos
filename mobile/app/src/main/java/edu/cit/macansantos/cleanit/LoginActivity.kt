@@ -43,7 +43,11 @@ class LoginActivity : AppCompatActivity() {
                             "Welcome, ${user.name}!", Toast.LENGTH_SHORT).show()
                         startActivity(Intent(this@LoginActivity, HomeActivity::class.java)
                             .putExtra("name", user.name)
-                            .putExtra("role", user.role))
+                            .putExtra("email", user.email)
+                            .putExtra("role", user.role)
+                            .putExtra("userId", user.id)
+                            .putExtra("contact", user.contactNo ?: "")
+                            .putExtra("verified", user.verified ?: false))
                         finish()
                     } else {
                         Toast.makeText(this@LoginActivity,

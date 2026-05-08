@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#0F172A"
+    android:padding="24dp"
+    android:gravity="center">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="👤"
+        android:textSize="64sp"
+        android:textColor="#7C3AED"
+        android:layout_marginBottom="24dp"/>
+
+    <TextView
+        android:id="@+id/tvProfileName"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="User Name"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:textColor="#FFFFFF"
+        android:layout_marginBottom="8dp"/>
+
+    <TextView
+        android:id="@+id/tvProfileRole"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="CLIENT"
+        android:textSize="14sp"
+        android:textColor="#7C3AED"
+        android:background="#1E293B"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="8dp"
+        android:layout_marginBottom="48dp"/>
+
+    <Button
+        android:id="@+id/btnLogout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Logout"
+        android:textColor="#FFFFFF"
+        android:backgroundTint="#F44336"
+        android:padding="14dp"/>
+
+</LinearLayout>
