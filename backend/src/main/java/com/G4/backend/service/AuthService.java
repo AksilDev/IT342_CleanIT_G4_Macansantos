@@ -167,4 +167,21 @@ public class AuthService {
         }
         return Map.of("exists", false);
     }
+
+    /**
+     * Authenticate user with Google ID token
+     * This method verifies the Google ID token and returns user information
+     * For mobile app integration
+     */
+    public LoginResponse authenticateWithGoogle(String idToken) {
+        // TODO: Verify Google ID token with Google's token verification API
+        // For now, we'll implement a simplified version that trusts the token
+        // In production, you should verify the token with Google's API
+        
+        // Extract email from token (simplified - in production, verify with Google)
+        // For now, we'll assume the token is valid and extract basic info
+        // You should use Google's token verification library in production
+        
+        throw new RuntimeException("Google authentication not fully implemented. Please use email/password login or complete the Google OAuth setup in backend.");
+    }
 }

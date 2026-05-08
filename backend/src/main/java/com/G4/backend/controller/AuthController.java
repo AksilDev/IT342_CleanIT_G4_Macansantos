@@ -56,4 +56,15 @@ public class AuthController {
         String email = body.get("email");
         return ResponseEntity.ok(authService.oauthCheck(email));
     }
+
+    @PostMapping("/google")
+    public ResponseEntity<LoginResponse> googleAuth(@RequestBody Map<String, String> body) {
+        try {
+            String idToken = body.get("idToken");
+            LoginResponse response = authService.authenticateWithGoogle(idToken);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(null);
+        }
+    }
 }
