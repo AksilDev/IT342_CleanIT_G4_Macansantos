@@ -6,6 +6,8 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import coil.load
+import coil.transform.RoundedCornersTransformation
 import edu.cit.macansantos.cleanit.R
 import edu.cit.macansantos.cleanit.model.BookingPhoto
 
@@ -22,9 +24,13 @@ class PhotosAdapter(
             tvPhotoType.text = photo.type
             tvPhotoDate.text = photo.uploadedAt
             
-            // TODO: Load image with Coil or Glide
-            // For now, just show placeholder
-            ivPhoto.setImageResource(android.R.drawable.ic_menu_gallery)
+            // Load image with Coil
+            ivPhoto.load(photo.fileUrl) {
+                crossfade(true)
+                placeholder(R.drawable.ic_service_placeholder)
+                error(R.drawable.ic_service_placeholder)
+                transformations(RoundedCornersTransformation(8f))
+            }
         }
     }
 

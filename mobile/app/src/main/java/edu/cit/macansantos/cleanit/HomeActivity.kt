@@ -108,6 +108,13 @@ class HomeActivity : AppCompatActivity() {
             })
             finish()
         }
+        
+        // View All Services button
+        findViewById<Button>(R.id.btnViewAllServices).setOnClickListener {
+            startActivity(Intent(this, ServicesActivity::class.java).apply {
+                putExtra("userId", userId)
+            })
+        }
     }
 
     private fun setupSwipeRefresh() {
