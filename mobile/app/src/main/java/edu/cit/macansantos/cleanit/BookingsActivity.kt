@@ -60,6 +60,7 @@ class BookingsActivity : AppCompatActivity() {
                             // Navigate to booking detail
                             startActivity(Intent(this@BookingsActivity, BookingDetailActivity::class.java).apply {
                                 putExtra("bookingId", booking.id)
+                                putExtra("userId", userId)
                             })
                         }
                         recyclerView.adapter = adapter

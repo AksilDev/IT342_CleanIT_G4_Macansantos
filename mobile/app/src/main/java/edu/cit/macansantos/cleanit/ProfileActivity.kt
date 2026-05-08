@@ -14,11 +14,28 @@ class ProfileActivity : AppCompatActivity() {
         supportActionBar?.title = "Profile"
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
+        // Get user data from intent
         val name = intent.getStringExtra("name") ?: "User"
+        val email = intent.getStringExtra("email") ?: "No email"
         val role = intent.getStringExtra("role") ?: "client"
+        val contact = intent.getStringExtra("contact") ?: "No contact"
+        val verified = intent.getBooleanExtra("verified", false)
 
+        // Display user information
         findViewById<TextView>(R.id.tvProfileName).text = name
+        findViewById<TextView>(R.id.tvProfileEmail).text = email
+        findViewById<TextView>(R.id.tvProfileContact).text = "📞 $contact"
         findViewById<TextView>(R.id.tvProfileRole).text = role.uppercase()
+        
+        // Verification status
+        val tvVerificationStatus = findViewById<TextView>(R.id.tvVerificationStatus)
+        if (verified) {
+            tvVerificationStatus.text = "✓ Verified Account"
+            tvVerificationStatus.setTextColor(0xFF4CAF50.toInt())
+        } else {
+            tvVerificationStatus.text = "⚠ Unverified Account"
+            tvVerificationStatus.setTextColor(0xFFF44336.toInt())
+        }
 
         findViewById<Button>(R.id.btnLogout).setOnClickListener {
             // Clear any saved session data here if needed

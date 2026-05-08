@@ -9,6 +9,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import edu.cit.macansantos.cleanit.adapter.BookingsAdapter
 import edu.cit.macansantos.cleanit.adapter.ServicesAdapter
 import edu.cit.macansantos.cleanit.model.Booking
@@ -18,6 +19,7 @@ import kotlinx.coroutines.launch
 
 class HomeActivity : AppCompatActivity() {
 
+    private lateinit var swipeRefreshLayout: SwipeRefreshLayout
     private lateinit var tvWelcome: TextView
     private lateinit var tvEmail: TextView
     private lateinit var tvContact: TextView
@@ -63,10 +65,14 @@ class HomeActivity : AppCompatActivity() {
 
         initializeViews()
         setupUserProfile()
+        setupSwipeRefresh()
         loadData()
     }
 
     private fun initializeViews() {
+        // Swipe Refresh
+        swipeRefreshLayout = findViewById(R.id.swipeRefreshLayout)
+        
         // User Profile
         tvWelcome = findViewById(R.id.tvWelcome)
         tvEmail = findViewById(R.id.tvEmail)
@@ -101,6 +107,13 @@ class HomeActivity : AppCompatActivity() {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             })
             finish()
+        }
+    }
+
+    private fun setupSwipeRefresh() {
+        swipeRefreshLayout.setColorSchemeColors(0xFF7C3AED.toInt())
+        swipeRefreshLayout.setOnRefreshListener {
+            loadData()
         }
     }
 
@@ -155,6 +168,7 @@ class HomeActivity : AppCompatActivity() {
                 showError("Failed to load active bookings: ${e.message}")
             } finally {
                 progressActiveBookings.visibility = View.GONE
+                swipeRefreshLayout.isRefreshing = false
             }
         }
     }
@@ -234,6 +248,7 @@ class HomeActivity : AppCompatActivity() {
     private fun openBookingDetail(booking: Booking) {
         startActivity(Intent(this, BookingDetailActivity::class.java).apply {
             putExtra("bookingId", booking.id)
+            putExtra("userId", userId)
         })
     }
 

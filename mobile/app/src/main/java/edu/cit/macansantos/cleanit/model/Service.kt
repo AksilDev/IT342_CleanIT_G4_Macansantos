@@ -25,5 +25,15 @@ data class Booking(
     val specialInstructions: String?,
     val createdAt: String,
     val clientName: String?,
-    val technicianName: String?
+    val technicianName: String?,
+    val addOns: List<String>?,
+    val photos: List<BookingPhoto>?,
+    val statusReason: String?
+)
+
+data class BookingPhoto(
+    val id: String,
+    val type: String, // "BEFORE" or "AFTER"
+    val fileUrl: String,
+    val uploadedAt: String
 )
