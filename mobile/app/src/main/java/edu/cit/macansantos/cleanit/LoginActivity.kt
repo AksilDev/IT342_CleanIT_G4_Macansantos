@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.text.InputType
 import android.view.View
 import android.widget.*
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.google.android.gms.auth.api.signin.GoogleSignIn
@@ -235,15 +236,50 @@ class LoginActivity : AppCompatActivity() {
         verified: Boolean?
     ) {
         Toast.makeText(this, "Welcome, $name!", Toast.LENGTH_SHORT).show()
-        startActivity(Intent(this, HomeActivity::class.java).apply {
-            putExtra("name", name)
-            putExtra("email", email)
-            putExtra("role", role)
-            putExtra("userId", userId)
-            putExtra("contact", contactNo ?: "")
-            putExtra("verified", verified ?: false)
-        })
-        finish()
+        
+        // Route based on user role
+        when (role?.lowercase()) {
+            "client" -> {
+                // Navigate to client dashboard (HomeActivity)
+                startActivity(Intent(this, HomeActivity::class.java).apply {
+                    putExtra("name", name)
+                    putExtra("email", email)
+                    putExtra("role", role)
+                    putExtra("userId", userId)
+                    putExtra("contact", contactNo ?: "")
+                    putExtra("verified", verified ?: false)
+                })
+                finish()
+            }
+            "technician" -> {
+                // Show message that technician dashboard is not yet available on mobile
+                AlertDialog.Builder(this)
+                    .setTitle("Technician Dashboard")
+                    .setMessage("The technician dashboard is not yet available on mobile. Please use the web version at http://localhost:5173")
+                    .setPositiveButton("OK") { dialog, _ ->
+                        dialog.dismiss()
+                        // Stay on login screen
+                    }
+                    .setCancelable(false)
+                    .show()
+            }
+            "admin" -> {
+                // Show message that admin dashboard is not yet available on mobile
+                AlertDialog.Builder(this)
+                    .setTitle("Admin Dashboard")
+                    .setMessage("The admin dashboard is not yet available on mobile. Please use the web version at http://localhost:5173")
+                    .setPositiveButton("OK") { dialog, _ ->
+                        dialog.dismiss()
+                        // Stay on login screen
+                    }
+                    .setCancelable(false)
+                    .show()
+            }
+            else -> {
+                // Unknown role
+                Toast.makeText(this, "Unknown user role: $role", Toast.LENGTH_LONG).show()
+            }
+        }
     }
 
     private fun showError(tvError: TextView, message: String) {
