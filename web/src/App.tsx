@@ -1,13 +1,13 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import Login from './pages/login/Login';
-import Register from './pages/register/Register';
-import RoleSelection from './pages/auth/RoleSelection';
-import AuthCallback from './pages/auth/AuthCallback';
-import Dashboard from './pages/dashboard/Dashboard';
-import Tdashboard from './pages/dashboard/Tdashboard';
-import Adashboard from './pages/dashboard/Adashboard';
-import Booking from './pages/booking/Booking';
+import Login from './features/auth/Login';
+import Register from './features/auth/Register';
+import RoleSelection from './features/auth/RoleSelection';
+import AuthCallback from './features/auth/AuthCallback';
+import Dashboard from './features/dashboard/Dashboard';
+import Tdashboard from './features/dashboard/Tdashboard';
+import Adashboard from './features/dashboard/Adashboard';
+import Booking from './features/booking/Booking';
 
 function getRole(): string | null {
 	try {

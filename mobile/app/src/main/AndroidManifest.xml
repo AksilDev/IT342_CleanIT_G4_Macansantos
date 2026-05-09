@@ -13,7 +13,7 @@
         android:usesCleartextTraffic="true"
         android:theme="@style/Theme.CleanIT">
 
-        <activity android:name=".LoginActivity"
+        <activity android:name=".features.auth.LoginActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
@@ -21,13 +21,15 @@
             </intent-filter>
         </activity>
 
-        <activity android:name=".RegisterActivity"/>
-        <activity android:name=".HomeActivity"/>
-        <activity android:name=".ServicesActivity"/>
-        <activity android:name=".BookingsActivity"/>
-        <activity android:name=".BookingDetailActivity"/>
-        <activity android:name=".ProfileActivity"/>
-        <activity android:name=".CreateBookingActivity"/>
+        <activity android:name=".features.auth.RegisterActivity"/>
+        <activity android:name=".features.home.HomeActivity"/>
+        <activity android:name=".features.catalog.ServicesActivity"/>
+        <activity android:name=".features.booking.BookingsActivity"/>
+        <activity android:name=".features.booking.BookingDetailActivity"/>
+        <activity android:name=".features.home.ProfileActivity"/>
+        <activity android:name=".features.booking.CreateBookingActivity"/>
+        <activity android:name=".features.dashboard.TechnicianDashboardActivity"/>
+        <activity android:name=".features.dashboard.AdminDashboardActivity"/>
 
     </application>
 </manifest>

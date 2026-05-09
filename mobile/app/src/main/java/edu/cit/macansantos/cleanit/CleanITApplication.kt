@@ -1,7 +1,7 @@
 package edu.cit.macansantos.cleanit
 
 import android.app.Application
-import edu.cit.macansantos.cleanit.network.RetrofitClient
+import edu.cit.macansantos.cleanit.shared.network.RetrofitClient
 
 class CleanITApplication : Application() {
     override fun onCreate() {

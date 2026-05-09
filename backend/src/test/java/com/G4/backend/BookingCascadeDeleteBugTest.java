@@ -1,9 +1,13 @@
 package com.G4.backend;
 
-import com.G4.backend.entity.*;
-import com.G4.backend.enums.BookingStatus;
-import com.G4.backend.enums.PhotoType;
-import com.G4.backend.repository.*;
+import com.G4.backend.features.booking.*;
+import com.G4.backend.features.catalog.*;
+import com.G4.backend.features.users.*;
+import com.G4.backend.features.booking.BookingStatus;
+import com.G4.backend.features.booking.PhotoType;
+import com.G4.backend.features.booking.*;
+import com.G4.backend.features.catalog.*;
+import com.G4.backend.features.users.*;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.BeforeEach;

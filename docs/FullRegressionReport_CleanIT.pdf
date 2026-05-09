@@ -1,0 +1,506 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [ 4 0 R 6 0 R 8 0 R 10 0 R 12 0 R ] /Count 5 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+4 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 5 0 R >>
+endobj
+5 0 obj
+<< /Length 2352 >>
+stream
+BT
+/F1 9 Tf
+50 750 Td
+14 TL
+(Full Regression Test Report - CleanIT) Tj
+T*
+() Tj
+T*
+(#Project Information) Tj
+T*
+() Tj
+T*
+(- Project: CleanIT) Tj
+T*
+(- Repository: https://github.com/AksilDev/IT342_CleanIT_G4_Macansantos.git) Tj
+T*
+(- Branch: vertical-slice-regression-refactor) Tj
+T*
+(- Date: 2026-05-09) Tj
+T*
+(- Platforms covered: Spring Boot backend, React/Vite web frontend, Android Kotlin mobile app) Tj
+T*
+() Tj
+T*
+(#Refactoring Summary) Tj
+T*
+() Tj
+T*
+(The project was refactored from technical-layer folders into vertical feature slices while) Tj
+T*
+(keeping shared infrastructure separate. Existing API routes, screen behavior, layout) Tj
+T*
+(resources, database entities, and application entry points were preserved.) Tj
+T*
+() Tj
+T*
+(Backend slices:) Tj
+T*
+() Tj
+T*
+(- `features/auth`: authentication controllers, DTOs, auth service, registration validators,) Tj
+T*
+(auth strategies, user event observers, user factory) Tj
+T*
+(- `features/booking`: booking controllers, booking service, booking status DTOs, booking) Tj
+T*
+(entities, booking repositories, booking enums, booking exception) Tj
+T*
+(- `features/catalog`: service catalog and add-on controller, entities, and repositories) Tj
+T*
+(- `features/users`: user/admin controllers, user entity, technician settings entity,) Tj
+T*
+(repositories) Tj
+T*
+(- `shared/config`, `shared/exception`, `shared/storage`: security, JWT, application config,) Tj
+T*
+(global exception handling, Supabase storage) Tj
+T*
+() Tj
+T*
+(Web slices:) Tj
+T*
+() Tj
+T*
+(- `features/auth`: login, registration, role selection, OAuth callback) Tj
+T*
+(- `features/booking`: booking creation and booking details modal) Tj
+T*
+(- `features/dashboard`: client, technician, and admin dashboards) Tj
+T*
+(- `shared/api`: Axios and Supabase clients) Tj
+T*
+() Tj
+T*
+(Mobile slices:) Tj
+T*
+() Tj
+T*
+(- `features/auth`: login, registration, auth request/response models) Tj
+T*
+(- `features/booking`: booking list/detail/create screens, booking adapters, booking) Tj
+T*
+(request/response models) Tj
+T*
+(- `features/catalog`: service list, service/add-on/technician models and adapters) Tj
+T*
+(- `features/dashboard`: admin and technician dashboards plus dashboard models) Tj
+T*
+(- `features/home`: home and profile screens) Tj
+T*
+(- `shared/network`, `shared/navigation`: Retrofit API client and role navigation) Tj
+T*
+() Tj
+T*
+ET
+endstream
+endobj
+6 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 7 0 R >>
+endobj
+7 0 obj
+<< /Length 1280 >>
+stream
+BT
+/F1 9 Tf
+50 750 Td
+14 TL
+(#Updated Project Structure) Tj
+T*
+() Tj
+T*
+(```text) Tj
+T*
+(backend/src/main/java/com/G4/backend/) Tj
+T*
+(  BackendApplication.java) Tj
+T*
+(  features/) Tj
+T*
+(    auth/) Tj
+T*
+(    booking/) Tj
+T*
+(    catalog/) Tj
+T*
+(    users/) Tj
+T*
+(  shared/) Tj
+T*
+(    config/) Tj
+T*
+(    exception/) Tj
+T*
+(    storage/) Tj
+T*
+() Tj
+T*
+(web/src/) Tj
+T*
+(  App.tsx) Tj
+T*
+(  features/) Tj
+T*
+(    auth/) Tj
+T*
+(    booking/) Tj
+T*
+(    dashboard/) Tj
+T*
+(  shared/api/) Tj
+T*
+() Tj
+T*
+(mobile/app/src/main/java/edu/cit/macansantos/cleanit/) Tj
+T*
+(  CleanITApplication.kt) Tj
+T*
+(  MainActivity.kt) Tj
+T*
+(  features/) Tj
+T*
+(    auth/) Tj
+T*
+(    booking/) Tj
+T*
+(    catalog/) Tj
+T*
+(    dashboard/) Tj
+T*
+(    home/) Tj
+T*
+(  shared/) Tj
+T*
+(    navigation/) Tj
+T*
+(    network/) Tj
+T*
+(```) Tj
+T*
+() Tj
+T*
+(#Functional Requirements Coverage) Tj
+T*
+() Tj
+T*
+(| Area | Functional requirement | Covered by |) Tj
+T*
+(| --- | --- | --- |) Tj
+T*
+(| Authentication | Email/password login, registration, JWT session, Google OAuth completion,) Tj
+T*
+(role routing | Backend auth APIs, web auth screens, mobile auth screens, mobile role) Tj
+T*
+(navigator |) Tj
+T*
+(| Role access | Client, technician, and admin users navigate to role-specific dashboards |) Tj
+T*
+ET
+endstream
+endobj
+8 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 9 0 R >>
+endobj
+9 0 obj
+<< /Length 3119 >>
+stream
+BT
+/F1 9 Tf
+50 750 Td
+14 TL
+(Web routes, mobile `RoleNavigator`, backend security/JWT filter |) Tj
+T*
+(| Service catalog | List available services, add-ons, technicians, and service add-on) Tj
+T*
+(compatibility | Backend catalog endpoints, web booking flow, mobile service and booking) Tj
+T*
+(screens |) Tj
+T*
+(| Booking creation | Client creates bookings with service, device, add-ons, date, time,) Tj
+T*
+(address, technician assignment | Backend booking service/controller, web booking screen,) Tj
+T*
+(mobile create booking |) Tj
+T*
+(| Booking management | Client views bookings, details, cancellation, rescheduling | Backend) Tj
+T*
+(booking APIs, web dashboard/modal, mobile booking list/detail |) Tj
+T*
+(| Technician workflow | Pending/assigned bookings, accept/reject, status updates, checklist,) Tj
+T*
+(required before/after photos | Backend technician booking APIs, web technician dashboard,) Tj
+T*
+(mobile technician dashboard |) Tj
+T*
+(| Admin workflow | View dashboard statistics, bookings, user verification,) Tj
+T*
+(cancellation/status oversight | Backend admin/user APIs, web admin dashboard, mobile admin) Tj
+T*
+(dashboard |) Tj
+T*
+(| Data integrity | Booking child records are preserved during normal operations and removed) Tj
+T*
+(correctly when deleting bookings | Backend cascade-delete and preservation tests |) Tj
+T*
+(| Regression safety | Application starts and compiles after vertical slice package moves |) Tj
+T*
+(Backend tests, web production build, mobile Kotlin compile/unit test |) Tj
+T*
+() Tj
+T*
+(#Test Plan) Tj
+T*
+() Tj
+T*
+(| Test ID | Requirement | Test procedure | Automated evidence |) Tj
+T*
+(| --- | --- | --- | --- |) Tj
+T*
+(| TP-01 | Backend application context | Run backend Spring Boot tests and verify application) Tj
+T*
+(context loads | `backend/target/surefire-reports/com.G4.backend.BackendApplicationTests.txt`) Tj
+T*
+(|) Tj
+T*
+(| TP-02 | Booking checklist initialization | Run checklist initialization regression tests |) Tj
+T*
+(`ChecklistInitializationBugTest`, `ChecklistPreservationPropertyTest` reports |) Tj
+T*
+(| TP-03 | Booking cascade deletion | Delete bookings with photos, checklist rows, add-ons,) Tj
+T*
+(and all child types | `BookingCascadeDeleteBugTest` report |) Tj
+T*
+(| TP-04 | Booking non-deletion behavior | Create/query/update child records and delete child) Tj
+T*
+(records independently | `BookingCascadeDeletePreservationPropertyTest` report |) Tj
+T*
+(| TP-05 | Web route/build integrity | Run Vite production build | `web/dist/index.html`,) Tj
+T*
+(`web/dist/assets/*` |) Tj
+T*
+(| TP-06 | Mobile Kotlin/package integrity | Compile Android debug Kotlin sources | Gradle) Tj
+T*
+(`:app:compileDebugKotlin` successful output |) Tj
+T*
+(| TP-07 | Mobile unit tests | Run Android debug unit tests |) Tj
+T*
+(`mobile/app/build/test-results/testDebugUnitTest/TEST-edu.cit.macansantos.cleanit.ExampleUni) Tj
+T*
+(Test.xml` |) Tj
+T*
+(| TP-08 | Manual smoke procedures | Login/register, role dashboard navigation, create) Tj
+T*
+(booking, update booking, admin verification | Manual procedures listed below |) Tj
+T*
+() Tj
+T*
+(#Manual Regression Steps) Tj
+T*
+() Tj
+T*
+ET
+endstream
+endobj
+10 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 11 0 R >>
+endobj
+11 0 obj
+<< /Length 2300 >>
+stream
+BT
+/F1 9 Tf
+50 750 Td
+14 TL
+(1. Register a client, technician, and admin account.) Tj
+T*
+(2. Log in as each role and verify redirection to the correct dashboard.) Tj
+T*
+(3. As a client, open services, choose a service/add-ons, create a booking, and verify it) Tj
+T*
+(appears in the client dashboard.) Tj
+T*
+(4. As a technician, view assigned bookings, accept a booking, start service, complete) Tj
+T*
+(checklist, upload before/after photos, and complete service.) Tj
+T*
+(5. As a client, open booking details and verify status, photos, schedule, and) Tj
+T*
+(reschedule/cancel controls.) Tj
+T*
+(6. As an admin, verify dashboard statistics, booking list, user verification controls, and) Tj
+T*
+(booking detail modal.) Tj
+T*
+(7. Confirm invalid states are blocked: incompatible add-ons, completing service without) Tj
+T*
+(checklist/photos, unverified users booking or accepting work.) Tj
+T*
+() Tj
+T*
+(#Automated Test Evidence) Tj
+T*
+() Tj
+T*
+(Commands executed on 2026-05-09:) Tj
+T*
+() Tj
+T*
+(| Command | Result |) Tj
+T*
+(| --- | --- |) Tj
+T*
+(| `backend/.mvnw.cmd -DskipTests compile` | Passed |) Tj
+T*
+(| `backend/.mvnw.cmd test` | Passed: 18 tests, 0 failures, 0 errors |) Tj
+T*
+(| `web/npm run build` | Passed: Vite production build created `web/dist` |) Tj
+T*
+(| `mobile/gradlew.bat :app:compileDebugKotlin` | Passed |) Tj
+T*
+(| `mobile/gradlew.bat :app:testDebugUnitTest` | Passed |) Tj
+T*
+() Tj
+T*
+(Evidence files:) Tj
+T*
+() Tj
+T*
+(- Backend Surefire XML/text reports: `backend/target/surefire-reports/`) Tj
+T*
+(- Mobile unit test XML report: `mobile/app/build/test-results/testDebugUnitTest/`) Tj
+T*
+(- Web production build artifacts: `web/dist/`) Tj
+T*
+() Tj
+T*
+(#Regression Test Results) Tj
+T*
+() Tj
+T*
+(| Area | Result | Notes |) Tj
+T*
+(| --- | --- | --- |) Tj
+T*
+(| Backend compile | Passed | All moved packages compile under feature slices |) Tj
+T*
+(| Backend tests | Passed | 18 tests passed after cascade-delete fix |) Tj
+T*
+(| Web build | Passed | Build completed; Vite reported only existing chunk-size/module-type) Tj
+T*
+(warnings |) Tj
+T*
+(| Mobile compile | Passed | Kotlin compile passed with existing deprecation/unused-variable) Tj
+T*
+(warnings |) Tj
+T*
+(| Mobile unit tests | Passed | Debug unit test task completed successfully |) Tj
+T*
+() Tj
+T*
+(#Issues Found) Tj
+T*
+() Tj
+T*
+ET
+endstream
+endobj
+12 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 13 0 R >>
+endobj
+13 0 obj
+<< /Length 1640 >>
+stream
+BT
+/F1 9 Tf
+50 750 Td
+14 TL
+(| Issue | Severity | Status | Evidence |) Tj
+T*
+(| --- | --- | --- | --- |) Tj
+T*
+(| Booking deletion did not reliably remove checklist/add-on child rows when child) Tj
+T*
+(collections were not attached to the in-memory booking aggregate | High | Fixed | Initial) Tj
+T*
+(`backend/.mvnw.cmd test` failed 3 cascade-delete cases |) Tj
+T*
+(| First mobile unit-test run could not access Gradle wrapper lock under user `.gradle`) Tj
+T*
+(directory | Environment | Resolved | Reran with permission; test task passed |) Tj
+T*
+() Tj
+T*
+(#Fixes Applied) Tj
+T*
+() Tj
+T*
+(- Refactored backend, web, and mobile code into feature-oriented packages/folders.) Tj
+T*
+(- Updated backend package declarations and imports for feature slices.) Tj
+T*
+(- Updated web route imports and API-client paths.) Tj
+T*
+(- Updated Android package declarations, manifest activity names, resource imports,) Tj
+T*
+(cross-feature Activity imports, Retrofit model imports, and role navigation imports.) Tj
+T*
+(- Moved mobile booking models out of the catalog model file into the booking slice.) Tj
+T*
+(- Fixed booking deletion by making `BookingRepository.delete\(Booking\)` explicitly delete) Tj
+T*
+(booking photos, checklist rows, and add-on join rows before deleting the booking row.) Tj
+T*
+() Tj
+T*
+(#Submission Notes) Tj
+T*
+() Tj
+T*
+(- Branch to push: `vertical-slice-regression-refactor`) Tj
+T*
+(- Repository link: https://github.com/AksilDev/IT342_CleanIT_G4_Macansantos.git) Tj
+T*
+(- PDF filename: `FullRegressionReport_CleanIT.pdf`) Tj
+T*
+(- Supporting automated evidence is available in the build/test report folders listed above.) Tj
+T*
+ET
+endstream
+endobj
+xref
+0 14
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000143 00000 n 
+0000000213 00000 n 
+0000000339 00000 n 
+0000002743 00000 n 
+0000002869 00000 n 
+0000004201 00000 n 
+0000004327 00000 n 
+0000007498 00000 n 
+0000007626 00000 n 
+0000009979 00000 n 
+0000010107 00000 n 
+trailer
+<< /Size 14 /Root 1 0 R >>
+startxref
+11800
+%%EOF
