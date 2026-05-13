@@ -59,6 +59,7 @@ A full-stack application for managing cleaning service bookings with role-based 
 - Decorator Pattern (validation)
 - Observer Pattern (notifications)
 - Strategy Pattern (authentication)
+- Vertical Slice Architecture (feature-based organization)
 
 ## Project Structure
 
