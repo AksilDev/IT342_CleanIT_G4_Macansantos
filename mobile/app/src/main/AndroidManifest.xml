@@ -22,6 +22,8 @@
         </activity>
 
         <activity android:name=".features.auth.RegisterActivity"/>
+        <activity android:name=".features.auth.OAuthCompleteActivity"/>
+        <activity android:name=".features.auth.ResetPasswordActivity"/>
         <activity android:name=".features.home.HomeActivity"/>
         <activity android:name=".features.catalog.ServicesActivity"/>
         <activity android:name=".features.booking.BookingsActivity"/>
@@ -30,6 +32,7 @@
         <activity android:name=".features.booking.CreateBookingActivity"/>
         <activity android:name=".features.dashboard.TechnicianDashboardActivity"/>
         <activity android:name=".features.dashboard.AdminDashboardActivity"/>
+        <activity android:name=".features.dashboard.AdminBookingsActivity"/>
 
     </application>
 </manifest>

@@ -32,6 +32,7 @@ export default function AuthCallback() {
           // Existing user — save token and go to dashboard
           localStorage.setItem('cleanit.token', token);
           localStorage.setItem('cleanit.user', JSON.stringify({ email, name, role }));
+          // Profile id/contact loaded on dashboard via GET /v1/user/profile/{email}
           if (role === 'technician') navigate('/dashboard/technician');
           else if (role === 'admin') navigate('/admin/dashboard');
           else navigate('/dashboard');

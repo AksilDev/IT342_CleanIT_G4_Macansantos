@@ -1,5 +1,7 @@
 package edu.cit.macansantos.cleanit.features.dashboard
 
+import com.google.gson.annotations.SerializedName
+
 data class DashboardBooking(
     val id: String?,
     val bookingCode: String?,
@@ -34,9 +36,12 @@ data class AdminDashboardStatistics(
     val total: Int?,
     val pending: Int?,
     val confirmed: Int?,
+    @SerializedName("in_progress")
     val inProgress: Int?,
     val completed: Int?,
     val cancelled: Int?,
+    val activeBookings: Int?,
+    val confirmedBookings: Int?,
     val totalRevenue: Double?,
     val monthRevenue: Double?
 )

@@ -1,8 +1,11 @@
 package com.G4.backend.features.users;
 
+import com.G4.backend.features.auth.AuthService;
+import com.G4.backend.features.auth.ChangePasswordRequest;
 import com.G4.backend.features.users.User;
 import com.G4.backend.features.users.UserRepository;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -16,9 +19,11 @@ import java.util.stream.Collectors;
 public class UserController {
 
     private final UserRepository userRepository;
+    private final AuthService authService;
 
-    public UserController(UserRepository userRepository) {
+    public UserController(UserRepository userRepository, AuthService authService) {
         this.userRepository = userRepository;
+        this.authService = authService;
     }
 
     @GetMapping("/profile/{email}")
@@ -83,6 +88,24 @@ public class UserController {
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Failed to fetch technicians: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/change-password")
+    public ResponseEntity<?> changePassword(
+            @AuthenticationPrincipal User user,
+            @RequestBody ChangePasswordRequest request) {
+        try {
+            if (user == null) {
+                return ResponseEntity.status(401).body(Map.of("message", "Unauthorized"));
+            }
+            String message = authService.changePassword(
+                    user,
+                    request.getCurrentPassword(),
+                    request.getNewPassword());
+            return ResponseEntity.ok(Map.of("message", message));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }
     }
 }

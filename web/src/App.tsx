@@ -8,6 +8,7 @@ import Dashboard from './features/dashboard/Dashboard';
 import Tdashboard from './features/dashboard/Tdashboard';
 import Adashboard from './features/dashboard/Adashboard';
 import Booking from './features/booking/Booking';
+import ResetPassword from './features/auth/ResetPassword';
 
 function getRole(): string | null {
 	try {
@@ -53,6 +54,7 @@ export default function App() {
 					<Route path="/" element={<Navigate to="/login" replace />} />
 					<Route path="/login" element={<GuestRoute element={<Login />} />} />
 					<Route path="/register" element={<GuestRoute element={<Register />} />} />
+					<Route path="/reset-password" element={<GuestRoute element={<ResetPassword />} />} />
 					<Route path="/role-selection" element={<RoleSelection />} />
 					<Route path="/auth/callback" element={<AuthCallback />} />
 					<Route path="/dashboard" element={<ProtectedRoute element={<Dashboard />} allowedRole="client" />} />

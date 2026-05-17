@@ -111,7 +111,7 @@ VITE_GOOGLE_CLIENT_ID=your_google_client_id
 ### Mobile (Android)
 
 No environment variables needed. API base URL is configured in:
-- `mobile/app/src/main/java/edu/cit/macansantos/cleanit/network/RetrofitClient.kt`
+- `mobile/app/src/main/java/edu/cit/macansantos/cleanit/shared/network/RetrofitClient.kt`
 - Default: `http://10.0.2.2:8080/api/` (Android emulator)
 - For physical device: Update to your machine's IP address
 
@@ -191,34 +191,83 @@ Frontend: `http://localhost:5173`
 
 ## API Endpoints
 
+Base URL: `http://localhost:8080/api` (web proxy + mobile Retrofit)
+
 ### Authentication
-- `POST /api/auth/register` - User registration
-- `POST /api/auth/login` - User login (returns JWT)
-- `GET /api/auth/oauth2/google` - Google OAuth2 login
+| Endpoint | Web | Mobile | Notes |
+|----------|-----|--------|-------|
+| `POST /v1/auth/login` | Yes | Yes | Email/password → JWT |
+| `POST /v1/auth/register` | Yes | Yes | Includes `imageUrl` after upload |
+| `POST /v1/auth/upload-image` | Yes | Yes | Multipart ID document |
+| `POST /v1/auth/oauth-check` | Yes | Yes | Google / OAuth existing user |
+| `POST /v1/auth/oauth-complete` | Yes | Yes | New Google user profile completion |
+| `POST /v1/auth/google` | — | Yes | Legacy mobile fallback |
+| `POST /v1/auth/forgot-password` | Yes | Yes | Returns `resetToken` when account exists (dev flow) |
+| `POST /v1/auth/reset-password` | Yes | Yes | Token + new password |
+| `POST /v1/user/change-password` | Yes | Yes | Authenticated password change |
+| Browser `GET /oauth2/authorization/google` | Yes | — | Web Supabase + Spring OAuth redirect |
 
-### Services
-- `GET /api/v1/services` - List all services
-- `GET /api/v1/services/{id}` - Get service details
-- `GET /api/v1/services/{id}/addons` - Get compatible add-ons
+### User & catalog
+| Endpoint | Web | Mobile |
+|----------|-----|--------|
+| `GET /v1/user/profile/{email}` | Yes | Yes |
+| `GET /v1/user/technicians/verified` | Yes | Yes |
+| `GET /v1/services` | Yes | Yes |
+| `GET /v1/services/{id}` | — | Yes |
+| `GET /v1/services/{id}/addons` | Yes | Yes |
 
-### Bookings
-- `POST /api/v1/bookings/create` - Create booking
-- `GET /api/v1/bookings/client/{clientId}` - Get client bookings
-- `POST /api/v1/bookings/{bookingId}/cancel` - Cancel booking
-- `POST /api/v1/bookings/{bookingId}/reschedule` - Reschedule booking
+### Client bookings
+| Endpoint | Web | Mobile |
+|----------|-----|--------|
+| `GET /v1/bookings/client/{clientId}` | Yes | Yes |
+| `GET /v1/bookings/{id}` | — | Yes | Booking detail screen |
+| `POST /v1/bookings/create` | Yes | Yes |
+| `POST /v1/bookings/{id}/cancel` | Yes | Yes |
+| `POST /v1/bookings/{id}/reschedule` | Yes | Yes |
 
 ### Technician
-- `GET /api/v1/technician/bookings/pending` - Get pending bookings
-- `POST /api/v1/technician/bookings/{id}/accept` - Accept booking
-- `POST /api/v1/technician/bookings/{id}/status` - Update status
-- `POST /api/v1/technician/bookings/{id}/photos` - Upload photos
+| Endpoint | Web | Mobile |
+|----------|-----|--------|
+| `GET /v1/technician/bookings/pending` | Yes | Yes |
+| `GET /v1/technician/{id}/bookings` | Yes | Yes |
+| `GET /v1/technician/{id}/availability` | Yes | Yes |
+| `POST /v1/technician/{id}/availability` | Yes | Yes |
+| `GET /v1/technician/{id}/statistics` | — | Yes |
+| `POST /v1/technician/bookings/{id}/accept` | Yes | Yes |
+| `POST /v1/technician/bookings/{id}/status` | Yes | Yes |
+| `GET/POST .../checklist` | Yes | Yes |
+| `GET/POST .../photos` | Yes | Yes |
+| `GET .../validate-checklist` | Yes | Yes |
+| `GET .../validate-photos` | Yes | Yes |
 
 ### Admin
-- `GET /api/v1/admin/dashboard/statistics` - Get statistics
-- `GET /api/v1/admin/bookings/by-status` - Get bookings by status
-- `POST /api/v1/admin/bookings/{id}/void` - Void/terminate booking
-- `GET /api/v1/admin/pending-verifications` - Get pending users
-- `POST /api/v1/admin/verify-user/{id}` - Approve/reject user
+| Endpoint | Web | Mobile |
+|----------|-----|--------|
+| `GET /v1/admin/dashboard/statistics` | Yes | Yes |
+| `GET /v1/admin/dashboard/recent-bookings` | Yes | Yes |
+| `GET /v1/admin/pending-verifications` | Yes | Yes |
+| `POST /v1/admin/verify-user/{id}` | Yes | Yes |
+| `GET /v1/admin/bookings/by-status` | Yes | Yes |
+| `POST /v1/admin/bookings/{id}/void` | Yes | Yes |
+
+## Web ↔ Mobile feature parity (README features)
+
+| README feature | Web | Mobile |
+|----------------|-----|--------|
+| Browse services + add-ons + book | Yes | Yes |
+| Booking history & status | Yes | Yes |
+| Cancel / reschedule | Yes | Yes |
+| Before/after photos (client view) | Yes | Yes |
+| Technician accept / status / checklist / photos | Yes | Yes |
+| Availability toggle | Yes | Yes |
+| Admin statistics | Yes | Yes |
+| Admin booking drill-down + void | Yes | Yes (search; web adds sort) |
+| User verification | Yes | Yes |
+| Email/password auth | Yes | Yes |
+| Google sign-in + new user onboarding | Yes (Supabase) | Yes (`oauth-check` / `oauth-complete`) |
+| Registration with ID image | Yes | Yes |
+| Password reset (forgot + reset) | Yes | Yes |
+| Change password (logged in) | Yes | Yes |
 
 ## Service Configuration
 
@@ -336,26 +385,15 @@ implementation("com.google.android.material:material:1.11.0")
 
 ---
 
-## 📱 Mobile App Status
+## Platform parity status
 
-**Completion:** 90% ✅  
-**Build Status:** Successful (0 errors)  
-**Testing Status:** Ready for production testing
+**Web and mobile implement the same backend capabilities** for client, technician, and admin roles (per feature list above). Users can register on one platform and sign in on the other with email/password.
 
-### Mobile Features
-- ✅ Email/password authentication
-- ✅ User registration with auto-login
-- ✅ Home dashboard with pull-to-refresh
-- ✅ Service browsing with images (Coil)
-- ✅ Search services functionality
-- ✅ Complete booking creation flow
-- ✅ Booking management with status filter
-- ✅ Cancel/reschedule bookings
-- ✅ Before/after photos display
-- ✅ No-show notification handling
-- ✅ Profile management
+**Shared gaps (both platforms):** email delivery for reset tokens (tokens returned in API / server logs for local testing).
 
-**See `MOBILE_APP_STATUS.md` for detailed implementation report.**
+**Web-only:** Supabase browser OAuth redirect (`/oauth2/authorization/google`).
+
+**Mobile-only extras:** technician statistics card, dedicated booking detail API call (same data as web list view).
 
 ---
 

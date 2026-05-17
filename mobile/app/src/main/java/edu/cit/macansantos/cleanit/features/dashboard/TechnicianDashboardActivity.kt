@@ -32,6 +32,7 @@ import edu.cit.macansantos.cleanit.features.dashboard.TechnicianBookingPhoto
 import edu.cit.macansantos.cleanit.features.dashboard.TechnicianChecklistItem
 import edu.cit.macansantos.cleanit.features.dashboard.TechnicianStatusUpdateRequest
 import edu.cit.macansantos.cleanit.shared.network.RetrofitClient
+import edu.cit.macansantos.cleanit.shared.session.SessionManager
 import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
@@ -59,6 +60,7 @@ class TechnicianDashboardActivity : AppCompatActivity() {
     private lateinit var historyBookingsContainer: LinearLayout
 
     private var technicianId = ""
+    private var technicianEmail = ""
     private var technicianName = "Technician"
     private var isAvailable = true
     private var currentTab = "overview"
@@ -79,6 +81,7 @@ class TechnicianDashboardActivity : AppCompatActivity() {
         setContentView(R.layout.activity_technician_dashboard)
 
         technicianId = intent.getStringExtra("userId").orEmpty()
+        technicianEmail = intent.getStringExtra("email").orEmpty()
         technicianName = intent.getStringExtra("name") ?: "Technician"
 
         bindViews()
@@ -110,10 +113,9 @@ class TechnicianDashboardActivity : AppCompatActivity() {
     }
 
     private fun setupHeader() {
-        val email = intent.getStringExtra("email").orEmpty()
         tvWelcome.text = "Welcome Back, $technicianName"
         tvName.text = technicianName
-        tvEmail.text = email
+        tvEmail.text = technicianEmail
         tvAvatar.text = initials(technicianName)
     }
 
@@ -137,6 +139,7 @@ class TechnicianDashboardActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             try {
+                refreshUserProfile()
                 val statsResponse = RetrofitClient.instance.getTechnicianStatistics(technicianId)
                 val availabilityResponse = RetrofitClient.instance.getTechnicianAvailability(technicianId)
                 val assignedResponse = RetrofitClient.instance.getTechnicianBookings(technicianId)
@@ -217,9 +220,47 @@ class TechnicianDashboardActivity : AppCompatActivity() {
         }
     }
 
+    private suspend fun refreshUserProfile() {
+        if (technicianEmail.isBlank()) return
+        val response = RetrofitClient.instance.getUserProfile(technicianEmail)
+        if (response.isSuccessful && response.body() != null) {
+            val profile = response.body()!!
+            technicianId = profile.id ?: technicianId
+            technicianName = profile.name ?: technicianName
+            technicianEmail = profile.email ?: technicianEmail
+            SessionManager.saveUserProfile(SessionManager.prefs(this), profile)
+            runOnUiThread { setupHeader() }
+        }
+    }
+
     private fun updateBookingStatus(bookingId: String, newStatus: String) {
         lifecycleScope.launch {
             try {
+                if (newStatus == "completed") {
+                    val checklistResponse = RetrofitClient.instance.validateChecklist(bookingId)
+                    if (!checklistResponse.isSuccessful || checklistResponse.body()?.isComplete != true) {
+                        val items = checklistResponse.body()?.incompleteItems.orEmpty()
+                        val detail = if (items.isNotEmpty()) {
+                            "\n${items.take(3).joinToString(", ")}"
+                        } else ""
+                        showMessage(
+                            "Cannot complete service. Checklist incomplete.$detail",
+                            true
+                        )
+                        return@launch
+                    }
+
+                    val photosResponse = RetrofitClient.instance.validatePhotos(bookingId)
+                    if (!photosResponse.isSuccessful || photosResponse.body()?.hasRequiredPhotos != true) {
+                        val missing = photosResponse.body()?.missingRequirements.orEmpty()
+                        showMessage(
+                            "Cannot complete service. ${missing.joinToString("\n")}",
+                            true
+                        )
+                        return@launch
+                    }
+                }
+
                 val response = RetrofitClient.instance.updateTechnicianBookingStatus(
                     bookingId,
                     TechnicianStatusUpdateRequest(
@@ -986,7 +1027,7 @@ class TechnicianDashboardActivity : AppCompatActivity() {
     }
 
     private fun logout() {
-        getSharedPreferences("CleanITPrefs", MODE_PRIVATE).edit().clear().apply()
+        SessionManager.clearSession(SessionManager.prefs(this))
         startActivity(Intent(this, LoginActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         })

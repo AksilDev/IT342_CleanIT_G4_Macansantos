@@ -8,18 +8,12 @@ import edu.cit.macansantos.cleanit.features.home.HomeActivity
 
 import android.app.Activity
 import android.content.Intent
-import android.content.SharedPreferences
+import edu.cit.macansantos.cleanit.features.auth.LoginResponse
+import edu.cit.macansantos.cleanit.shared.session.SessionManager
 
 object RoleNavigator {
-    fun saveSession(
-        sharedPreferences: SharedPreferences,
-        token: String,
-        role: String?
-    ) {
-        sharedPreferences.edit()
-            .putString("jwt_token", token)
-            .putString("user_role", normalizeRole(role))
-            .apply()
+    fun saveSession(sharedPreferences: android.content.SharedPreferences, user: LoginResponse) {
+        SessionManager.saveSession(sharedPreferences, user.token, user)
     }
 
     fun navigate(

@@ -26,7 +26,11 @@ import edu.cit.macansantos.cleanit.features.dashboard.TechnicianBookingPhoto
 import edu.cit.macansantos.cleanit.features.dashboard.TechnicianChecklistItem
 import edu.cit.macansantos.cleanit.features.dashboard.TechnicianStatistics
 import edu.cit.macansantos.cleanit.features.dashboard.TechnicianStatusUpdateRequest
+import edu.cit.macansantos.cleanit.features.dashboard.AdminBookingsResponse
+import edu.cit.macansantos.cleanit.features.dashboard.ChecklistValidationResponse
+import edu.cit.macansantos.cleanit.features.dashboard.PhotoValidationResponse
 import edu.cit.macansantos.cleanit.features.dashboard.VerificationUser
+import edu.cit.macansantos.cleanit.features.users.UserProfile
 import retrofit2.Response
 import retrofit2.http.*
 import okhttp3.MultipartBody
@@ -43,6 +47,21 @@ interface ApiService {
     @POST("v1/auth/google")
     suspend fun googleAuth(@Body request: Map<String, String>): Response<LoginResponse>
 
+    @POST("v1/auth/oauth-check")
+    suspend fun oauthCheck(@Body body: Map<String, String>): Response<edu.cit.macansantos.cleanit.features.auth.OAuthCheckResponse>
+
+    @POST("v1/auth/oauth-complete")
+    suspend fun oauthComplete(@Body request: edu.cit.macansantos.cleanit.features.auth.OAuthCompleteRequest): Response<LoginResponse>
+
+    @POST("v1/auth/forgot-password")
+    suspend fun forgotPassword(@Body body: Map<String, String>): Response<edu.cit.macansantos.cleanit.features.auth.ForgotPasswordResponse>
+
+    @POST("v1/auth/reset-password")
+    suspend fun resetPassword(@Body body: Map<String, String>): Response<ResponseBody>
+
+    @POST("v1/user/change-password")
+    suspend fun changePassword(@Body body: Map<String, String>): Response<ResponseBody>
+
     @GET("v1/services")
     suspend fun getServices(): Response<List<Service>>
 
@@ -51,6 +70,9 @@ interface ApiService {
 
     @GET("v1/services/{id}/addons")
     suspend fun getServiceAddOns(@Path("id") id: String): Response<List<AddOn>>
+
+    @GET("v1/user/profile/{email}")
+    suspend fun getUserProfile(@Path("email") email: String): Response<UserProfile>
 
     @GET("v1/user/technicians/verified")
     suspend fun getVerifiedTechnicians(): Response<List<Technician>>
@@ -131,6 +153,16 @@ interface ApiService {
         @Part("technicianId") technicianId: RequestBody
     ): Response<ResponseBody>
 
+    @GET("v1/technician/bookings/{bookingId}/validate-checklist")
+    suspend fun validateChecklist(@Path("bookingId") bookingId: String): Response<ChecklistValidationResponse>
+
+    @GET("v1/technician/bookings/{bookingId}/validate-photos")
+    suspend fun validatePhotos(@Path("bookingId") bookingId: String): Response<PhotoValidationResponse>
+
+    @Multipart
+    @POST("v1/auth/upload-image")
+    suspend fun uploadImage(@Part file: MultipartBody.Part): Response<Map<String, String>>
+
     @GET("v1/admin/dashboard/statistics")
     suspend fun getAdminDashboardStatistics(): Response<AdminDashboardStatistics>
 
@@ -145,4 +177,12 @@ interface ApiService {
         @Path("userId") userId: String,
         @Body request: Map<String, String>
     ): Response<ResponseBody>
+
+    @GET("v1/admin/bookings/by-status")
+    suspend fun getAdminBookingsByStatus(
+        @Query("statuses") statuses: String
+    ): Response<AdminBookingsResponse>
+
+    @POST("v1/admin/bookings/{bookingId}/void")
+    suspend fun voidAdminBooking(@Path("bookingId") bookingId: String): Response<ResponseBody>
 }
