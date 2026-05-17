@@ -15,17 +15,19 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.cardview.widget.CardView
 import androidx.lifecycle.lifecycleScope
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-import edu.cit.macansantos.cleanit.features.dashboard.DashboardBooking
-import edu.cit.macansantos.cleanit.features.dashboard.VerificationUser
 import edu.cit.macansantos.cleanit.shared.network.RetrofitClient
+import edu.cit.macansantos.cleanit.shared.session.SessionManager
 import kotlinx.coroutines.launch
 
 class AdminDashboardActivity : AppCompatActivity() {
     private lateinit var swipeRefreshLayout: SwipeRefreshLayout
     private lateinit var tvStats: TextView
     private lateinit var tvMessage: TextView
+    private lateinit var statsActionsContainer: LinearLayout
     private lateinit var pendingUsersContainer: LinearLayout
     private lateinit var recentBookingsContainer: LinearLayout
+
+    private var latestStats: AdminDashboardStatistics? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -37,6 +39,7 @@ class AdminDashboardActivity : AppCompatActivity() {
         swipeRefreshLayout = findViewById(R.id.swipeRefreshLayout)
         tvStats = findViewById(R.id.tvStats)
         tvMessage = findViewById(R.id.tvMessage)
+        statsActionsContainer = findViewById(R.id.statsActionsContainer)
         pendingUsersContainer = findViewById(R.id.pendingUsersContainer)
         recentBookingsContainer = findViewById(R.id.recentBookingsContainer)
 
@@ -49,17 +52,9 @@ class AdminDashboardActivity : AppCompatActivity() {
             try {
                 val statsResponse = RetrofitClient.instance.getAdminDashboardStatistics()
                 if (statsResponse.isSuccessful) {
-                    val stats = statsResponse.body()
-                    tvStats.text = listOf(
-                        "Total bookings: ${stats?.total ?: 0}",
-                        "Pending: ${stats?.pending ?: 0}",
-                        "Confirmed: ${stats?.confirmed ?: 0}",
-                        "In progress: ${stats?.inProgress ?: 0}",
-                        "Completed: ${stats?.completed ?: 0}",
-                        "Cancelled: ${stats?.cancelled ?: 0}",
-                        "Revenue: PHP ${"%.2f".format(stats?.totalRevenue ?: 0.0)}",
-                        "This month: PHP ${"%.2f".format(stats?.monthRevenue ?: 0.0)}"
-                    ).joinToString("\n")
+                    latestStats = statsResponse.body()
+                    renderStats(latestStats)
+                    renderStatActions(latestStats)
                 }
 
                 renderUsers(RetrofitClient.instance.getPendingVerifications().body().orEmpty())
@@ -69,6 +64,58 @@ class AdminDashboardActivity : AppCompatActivity() {
                 showMessage("Failed to load admin dashboard: ${e.message}")
             } finally {
                 swipeRefreshLayout.isRefreshing = false
+            }
+        }
+    }
+
+    private fun renderStats(stats: AdminDashboardStatistics?) {
+        tvStats.text = listOf(
+            "Total bookings: ${stats?.total ?: 0}",
+            "Pending: ${stats?.pending ?: 0}",
+            "Confirmed: ${stats?.confirmed ?: 0}",
+            "In progress: ${stats?.inProgress ?: 0}",
+            "Completed: ${stats?.completed ?: 0}",
+            "Cancelled: ${stats?.cancelled ?: 0}",
+            "Revenue: PHP ${"%.2f".format(stats?.totalRevenue ?: 0.0)}",
+            "This month: PHP ${"%.2f".format(stats?.monthRevenue ?: 0.0)}"
+        ).joinToString("\n")
+    }
+
+    private fun renderStatActions(stats: AdminDashboardStatistics?) {
+        statsActionsContainer.removeAllViews()
+
+        val activeCount = stats?.activeBookings
+            ?: ((stats?.pending ?: 0) + (stats?.confirmed ?: 0) + (stats?.inProgress ?: 0))
+        val confirmedCount = stats?.confirmedBookings ?: (stats?.confirmed ?: 0)
+
+        statsActionsContainer.addView(
+            statActionButton(
+                "Active Bookings ($activeCount)",
+                "pending,confirmed,in_progress"
+            )
+        )
+        statsActionsContainer.addView(
+            statActionButton(
+                "Confirmed Bookings ($confirmedCount)",
+                "confirmed"
+            )
+        )
+    }
+
+    private fun statActionButton(label: String, statuses: String): Button {
+        return Button(this).apply {
+            text = "$label →"
+            setTextColor(0xFFFFFFFF.toInt())
+            setBackgroundColor(0xFF7C3AED.toInt())
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { bottomMargin = 8 }
+            setOnClickListener {
+                startActivity(Intent(this@AdminDashboardActivity, AdminBookingsActivity::class.java).apply {
+                    putExtra(AdminBookingsActivity.EXTRA_TITLE, label.substringBefore(" ("))
+                    putExtra(AdminBookingsActivity.EXTRA_STATUSES, statuses)
+                })
             }
         }
     }
@@ -119,14 +166,35 @@ class AdminDashboardActivity : AppCompatActivity() {
 
         bookings.forEach { booking ->
             val card = dashboardCard()
-            card.addView(textBlock(listOf(
+            val content = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(16, 16, 16, 16)
+            }
+
+            content.addView(textBlock(listOf(
                 booking.bookingCode ?: "Booking",
                 "${booking.serviceType ?: "Service"} - ${booking.deviceType ?: "Device"}",
                 "Client: ${booking.clientName ?: "N/A"}",
                 "Technician: ${booking.technicianName ?: "Unassigned"}",
                 "Status: ${booking.status ?: "unknown"}",
                 "Schedule: ${booking.bookingDate ?: "TBD"} ${booking.timeSlot ?: ""}"
-            ).joinToString("\n")).apply { setPadding(16, 16, 16, 16) })
+            ).joinToString("\n")))
+
+            if (booking.status in listOf("pending", "confirmed", "in_progress")) {
+                content.addView(actionButton("Manage / Void", 0xFFEF4444.toInt()) {
+                    val statuses = when (booking.status) {
+                        "pending" -> "pending"
+                        "confirmed" -> "confirmed"
+                        else -> "in_progress"
+                    }
+                    startActivity(Intent(this@AdminDashboardActivity, AdminBookingsActivity::class.java).apply {
+                        putExtra(AdminBookingsActivity.EXTRA_TITLE, "Booking Management")
+                        putExtra(AdminBookingsActivity.EXTRA_STATUSES, statuses)
+                    })
+                })
+            }
+
+            card.addView(content)
             recentBookingsContainer.addView(card)
         }
     }
@@ -191,7 +259,7 @@ class AdminDashboardActivity : AppCompatActivity() {
     }
 
     private fun logout() {
-        getSharedPreferences("CleanITPrefs", MODE_PRIVATE).edit().clear().apply()
+        SessionManager.clearSession(SessionManager.prefs(this))
         startActivity(Intent(this, LoginActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         })

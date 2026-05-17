@@ -57,6 +57,8 @@ export default function Adashboard() {
 	const [modalTitle, setModalTitle] = useState('');
 	const [modalStatuses, setModalStatuses] = useState<string[]>([]);
 	const [modalInitialCount, setModalInitialCount] = useState(0);
+	const [recentBookings, setRecentBookings] = useState<any[]>([]);
+	const [recentLoading, setRecentLoading] = useState(true);
 
 	const user = React.useMemo(() => {
 		try {
@@ -116,6 +118,24 @@ export default function Adashboard() {
 		
 		if (user && user.role === 'admin') {
 			fetchStatistics();
+		}
+	}, [user]);
+
+	useEffect(() => {
+		const fetchRecentBookings = async () => {
+			try {
+				setRecentLoading(true);
+				const response = await api.get('/v1/admin/dashboard/recent-bookings?limit=10');
+				setRecentBookings(response.data);
+			} catch (err) {
+				console.error('Failed to fetch recent bookings:', err);
+			} finally {
+				setRecentLoading(false);
+			}
+		};
+
+		if (user && user.role === 'admin') {
+			fetchRecentBookings();
 		}
 	}, [user]);
 
@@ -436,6 +456,44 @@ export default function Adashboard() {
 						</div>
 					</div>
 				)}
+
+				{/* Recent Bookings */}
+				<div className="mb-8">
+					<h2 className="text-lg font-semibold text-slate-900 mb-4">Recent Bookings</h2>
+					{recentLoading ? (
+						<div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-500">
+							Loading recent bookings...
+						</div>
+					) : recentBookings.length === 0 ? (
+						<div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-500">
+							No recent bookings.
+						</div>
+					) : (
+						<div className="space-y-3">
+							{recentBookings.map((booking: any) => (
+								<div key={booking.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+									<div className="flex items-start justify-between gap-3">
+										<div>
+											<p className="font-semibold text-slate-900">{booking.bookingCode}</p>
+											<p className="text-sm text-slate-600">{booking.serviceType} · {booking.clientName}</p>
+											<p className="text-xs text-slate-500 mt-1">
+												{booking.bookingDate} {booking.timeSlot} · {booking.status}
+											</p>
+										</div>
+										{(booking.status === 'pending' || booking.status === 'confirmed' || booking.status === 'in_progress') && (
+											<button
+												onClick={() => handleCardClick('Booking Management', [booking.status], 1)}
+												className="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-700"
+											>
+												Manage
+											</button>
+										)}
+									</div>
+								</div>
+							))}
+						</div>
+					)}
+				</div>
 
 				{/* Booking Details Modal */}
 				<BookingDetailsModal

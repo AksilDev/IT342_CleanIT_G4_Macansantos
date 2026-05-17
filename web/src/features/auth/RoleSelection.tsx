@@ -116,9 +116,9 @@ export default function RoleSelection() {
       });
 
       // Save the JWT so protected routes work
-      const { token, name, email, role, verified } = response.data;
-      localStorage.setItem('token', token);
-      localStorage.setItem('cleanit.user', JSON.stringify({ name, email, role, verified }));
+      const { token, id, name, email, role, contactNo, verified } = response.data;
+      localStorage.setItem('cleanit.token', token);
+      localStorage.setItem('cleanit.user', JSON.stringify({ id, name, email, role, contactNo, verified }));
 
       if (selectedRole === 'technician') {
         navigate('/dashboard/technician');

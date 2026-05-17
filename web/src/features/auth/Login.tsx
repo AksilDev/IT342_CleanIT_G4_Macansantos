@@ -5,6 +5,7 @@ import api from '../../shared/api/axios';
 import { supabase } from '../../shared/api/supabaseClient';
 
 type LoginResponse = {
+  id?: string;
   message?: string;
   name?: string;
   email?: string;
@@ -22,6 +23,31 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
+  const [forgotLoading, setForgotLoading] = useState(false);
+
+  async function handleForgotPassword() {
+    if (!username.trim()) {
+      setError('Enter your email address first, then click Forgot password.');
+      return;
+    }
+    setError(null);
+    setInfo(null);
+    setForgotLoading(true);
+    try {
+      const res = await api.post('/v1/auth/forgot-password', { email: username.trim() });
+      const token = res.data?.resetToken;
+      if (token) {
+        navigate(`/reset-password?token=${encodeURIComponent(token)}`);
+      } else {
+        setInfo(res.data?.message ?? 'If an account exists, reset instructions were sent.');
+      }
+    } catch (err: any) {
+      setError(err?.response?.data?.message ?? 'Failed to request password reset.');
+    } finally {
+      setForgotLoading(false);
+    }
+  }
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -30,6 +56,7 @@ export default function Login() {
     try {
       const res = await api.post<LoginResponse>('/v1/auth/login', { email: username, password });
       const userData = {
+        id: (res.data as LoginResponse & { id?: string })?.id,
         name: res.data?.name,
         email: res.data?.email,
         role: res.data?.role,
@@ -124,13 +151,21 @@ export default function Login() {
                   <input type="checkbox" className="h-3.5 w-3.5 rounded border-slate-300" />
                   <span>Remember me</span>
                 </label>
-                <button type="button" className="font-medium text-violet-700 hover:text-violet-800">
-                  Forgot password?
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  disabled={forgotLoading}
+                  className="font-medium text-violet-700 hover:text-violet-800 disabled:opacity-60"
+                >
+                  {forgotLoading ? 'Sending...' : 'Forgot password?'}
                 </button>
               </div>
 
               {error && (
                 <div className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</div>
+              )}
+              {info && (
+                <div className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{info}</div>
               )}
 
               <button
@@ -183,3 +218,5 @@ export default function Login() {
     </div>
   );
 }
+
+

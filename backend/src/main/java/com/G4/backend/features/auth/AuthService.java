@@ -14,10 +14,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import com.G4.backend.shared.config.JwtService;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.UUID;
 import java.util.Map;
 import java.util.Optional;
@@ -33,6 +38,9 @@ import java.util.Optional;
 @Service
 public class AuthService {
 
+    private static final Logger logger = LoggerFactory.getLogger(AuthService.class);
+    private static final int RESET_TOKEN_HOURS = 1;
+
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
@@ -40,6 +48,7 @@ public class AuthService {
     private final AuthenticationContext authContext;
     private final UserEventPublisher eventPublisher;
     private final RegistrationValidator registrationValidator;
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
 
     public AuthService(UserRepository userRepository, 
                        PasswordEncoder passwordEncoder, 
@@ -47,13 +56,15 @@ public class AuthService {
                        UserFactory userFactory,
                        AuthenticationContext authContext,
                        UserEventPublisher eventPublisher,
-                       BaseRegistrationValidator baseValidator) {
+                       BaseRegistrationValidator baseValidator,
+                       PasswordResetTokenRepository passwordResetTokenRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.userFactory = userFactory;
         this.authContext = authContext;
         this.eventPublisher = eventPublisher;
+        this.passwordResetTokenRepository = passwordResetTokenRepository;
         
         // DECORATOR PATTERN: Chain validators together
         RegistrationValidator validator = baseValidator;
@@ -209,6 +220,89 @@ public class AuthService {
                     .build();
         } else {
             throw new RuntimeException("No account found with this Google email. Please register first or use a different account.");
+        }
+    }
+
+    /**
+     * Request a password reset token. Always returns a generic message.
+     * When the account exists, includes resetToken in the response (for dev / in-app reset flow).
+     */
+    public Map<String, Object> requestPasswordReset(String email) {
+        if (email == null || email.trim().isEmpty()) {
+            throw new RuntimeException("Email is required.");
+        }
+
+        String normalizedEmail = email.trim().toLowerCase();
+        Map<String, Object> response = new HashMap<>();
+        response.put("message", "If an account exists with this email, password reset instructions have been sent.");
+        response.put("expiresInMinutes", RESET_TOKEN_HOURS * 60);
+
+        Optional<User> userOpt = userRepository.findByEmail(normalizedEmail);
+        if (userOpt.isEmpty()) {
+            return response;
+        }
+
+        passwordResetTokenRepository.deleteByEmail(normalizedEmail);
+
+        String token = UUID.randomUUID().toString();
+        PasswordResetToken resetToken = new PasswordResetToken();
+        resetToken.setEmail(normalizedEmail);
+        resetToken.setToken(token);
+        resetToken.setExpiresAt(LocalDateTime.now().plusHours(RESET_TOKEN_HOURS));
+        passwordResetTokenRepository.save(resetToken);
+
+        logger.info("Password reset requested for {} — token: {}", normalizedEmail, token);
+        response.put("resetToken", token);
+        return response;
+    }
+
+    public String resetPassword(String token, String newPassword) {
+        if (token == null || token.isBlank()) {
+            throw new RuntimeException("Reset token is required.");
+        }
+        validatePasswordStrength(newPassword);
+
+        PasswordResetToken resetToken = passwordResetTokenRepository.findByTokenAndUsedFalse(token.trim())
+                .filter(t -> t.getExpiresAt().isAfter(LocalDateTime.now()))
+                .orElseThrow(() -> new RuntimeException("Invalid or expired reset token. Please request a new password reset."));
+
+        User user = userRepository.findByEmail(resetToken.getEmail())
+                .orElseThrow(() -> new RuntimeException("User account not found."));
+
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+
+        resetToken.setUsed(true);
+        passwordResetTokenRepository.save(resetToken);
+
+        return "Password reset successful. You can now sign in with your new password.";
+    }
+
+    public String changePassword(User user, String currentPassword, String newPassword) {
+        if (currentPassword == null || currentPassword.isBlank()) {
+            throw new RuntimeException("Current password is required.");
+        }
+        if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
+            throw new RuntimeException("Current password is incorrect.");
+        }
+        validatePasswordStrength(newPassword);
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+        return "Password changed successfully.";
+    }
+
+    private void validatePasswordStrength(String password) {
+        if (password == null || password.isBlank()) {
+            throw new RuntimeException("Password is required.");
+        }
+        if (password.length() < 8) {
+            throw new RuntimeException("Password must be at least 8 characters long.");
+        }
+        if (!password.matches(".*[A-Z].*")) {
+            throw new RuntimeException("Password must contain at least one uppercase letter (A-Z).");
+        }
+        if (!password.matches(".*\\d.*")) {
+            throw new RuntimeException("Password must contain at least one number (0-9).");
         }
     }
 

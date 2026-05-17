@@ -20,6 +20,7 @@ import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.tasks.Task
 import edu.cit.macansantos.cleanit.features.auth.LoginRequest
 import edu.cit.macansantos.cleanit.shared.network.RetrofitClient
+import edu.cit.macansantos.cleanit.shared.session.SessionManager
 import kotlinx.coroutines.launch
 
 class LoginActivity : AppCompatActivity() {
@@ -51,6 +52,34 @@ class LoginActivity : AppCompatActivity() {
 
         setupViews()
         loadRememberedCredentials()
+        tryRestoreSession()
+    }
+
+    private fun tryRestoreSession() {
+        if (!SessionManager.hasValidSession(sharedPreferences)) return
+
+        val progressBar = findViewById<ProgressBar>(R.id.progressBar)
+        val btnLogin = findViewById<Button>(R.id.btnLogin)
+        progressBar.visibility = View.VISIBLE
+        btnLogin.isEnabled = false
+
+        lifecycleScope.launch {
+            try {
+                val email = SessionManager.getEmail(sharedPreferences)
+                val response = RetrofitClient.instance.getUserProfile(email)
+                if (response.isSuccessful && response.body() != null) {
+                    SessionManager.saveUserProfile(sharedPreferences, response.body()!!)
+                    SessionManager.navigateFromSession(this@LoginActivity, sharedPreferences)
+                    return@launch
+                }
+                SessionManager.clearSession(sharedPreferences)
+            } catch (_: Exception) {
+                SessionManager.clearSession(sharedPreferences)
+            } finally {
+                progressBar.visibility = View.GONE
+                btnLogin.isEnabled = true
+            }
+        }
     }
 
     private fun setupViews() {
@@ -106,7 +135,12 @@ class LoginActivity : AppCompatActivity() {
 
         // Forgot Password
         tvForgotPassword.setOnClickListener {
-            Toast.makeText(this, "Password reset feature coming soon", Toast.LENGTH_SHORT).show()
+            val email = etEmail.text.toString().trim()
+            if (email.isEmpty()) {
+                showError(tvError, "Enter your email first")
+                return@setOnClickListener
+            }
+            requestPasswordReset(email, tvError)
         }
 
         // Go to Register
@@ -132,7 +166,7 @@ class LoginActivity : AppCompatActivity() {
                 if (response.isSuccessful && response.body() != null) {
                     val user = response.body()!!
                     
-                    RoleNavigator.saveSession(sharedPreferences, user.token, user.role)
+                    RoleNavigator.saveSession(sharedPreferences, user)
                     navigateToHome(user.name, user.email, user.role, user.id, user.contactNo, user.verified)
                 } else {
                     showError(tvError, "Invalid email or password")
@@ -178,9 +212,8 @@ class LoginActivity : AppCompatActivity() {
             val email = account?.email
 
             if (email != null) {
-                // Send email to backend (simplified approach)
-                // Backend will check if user exists and return their info
-                authenticateWithBackend(email, progressBarGoogle, btnGoogleSignIn, tvError)
+                val name = account.displayName ?: email.substringBefore("@")
+                authenticateWithBackend(email, name, progressBarGoogle, btnGoogleSignIn, tvError)
             } else {
                 showError(tvError, "Failed to get Google email")
                 progressBarGoogle.visibility = View.GONE
@@ -195,27 +228,43 @@ class LoginActivity : AppCompatActivity() {
 
     private fun authenticateWithBackend(
         email: String,
+        name: String,
         progressBar: ProgressBar,
         btnGoogle: Button,
         tvError: TextView
     ) {
         lifecycleScope.launch {
             try {
-                // Send email to backend (simplified - backend trusts Google SDK verification)
-                val response = RetrofitClient.instance.googleAuth(mapOf("idToken" to email))
-                
-                if (response.isSuccessful && response.body() != null) {
-                    val user = response.body()!!
-                    
-                    val sharedPrefs = getSharedPreferences("CleanITPrefs", MODE_PRIVATE)
-                    RoleNavigator.saveSession(sharedPrefs, user.token, user.role)
-                    navigateToHome(user.name, user.email, user.role, user.id, user.contactNo, user.verified)
-                } else {
-                    val errorMsg = when (response.code()) {
-                        404 -> "No account found. Please register first with this Google account on the web."
-                        else -> "Google authentication failed. Please try again."
+                val checkResponse = RetrofitClient.instance.oauthCheck(mapOf("email" to email))
+                if (!checkResponse.isSuccessful || checkResponse.body() == null) {
+                    showError(tvError, "Google authentication failed. Please try again.")
+                    return@launch
+                }
+
+                val check = checkResponse.body()!!
+                if (check.exists == true && !check.token.isNullOrBlank()) {
+                    SessionManager.saveToken(sharedPreferences, check.token!!)
+                    val profileResponse = RetrofitClient.instance.getUserProfile(email)
+                    if (profileResponse.isSuccessful && profileResponse.body() != null) {
+                        val profile = profileResponse.body()!!
+                        SessionManager.saveUserProfile(sharedPreferences, profile)
+                        navigateToHome(
+                            profile.name,
+                            profile.email,
+                            profile.role,
+                            profile.id,
+                            profile.contactNo,
+                            profile.verified
+                        )
+                    } else {
+                        navigateToHome(name, email, check.role, null, null, false)
                     }
-                    showError(tvError, errorMsg)
+                } else {
+                    startActivity(Intent(this@LoginActivity, OAuthCompleteActivity::class.java).apply {
+                        putExtra(OAuthCompleteActivity.EXTRA_EMAIL, email)
+                        putExtra(OAuthCompleteActivity.EXTRA_NAME, name)
+                    })
+                    finish()
                 }
             } catch (e: Exception) {
                 showError(tvError, "Connection error: ${e.message}")
@@ -236,6 +285,30 @@ class LoginActivity : AppCompatActivity() {
     ) {
         Toast.makeText(this, "Welcome, $name!", Toast.LENGTH_SHORT).show()
         RoleNavigator.navigate(this, name, email, role, userId, contactNo, verified)
+    }
+
+    private fun requestPasswordReset(email: String, tvError: TextView) {
+        tvError.visibility = View.GONE
+        lifecycleScope.launch {
+            try {
+                val response = RetrofitClient.instance.forgotPassword(mapOf("email" to email))
+                if (response.isSuccessful && response.body() != null) {
+                    val body = response.body()!!
+                    val token = body.resetToken
+                    if (!token.isNullOrBlank()) {
+                        startActivity(Intent(this@LoginActivity, ResetPasswordActivity::class.java).apply {
+                            putExtra(ResetPasswordActivity.EXTRA_TOKEN, token)
+                        })
+                    } else {
+                        Toast.makeText(this@LoginActivity, body.message ?: "Request sent", Toast.LENGTH_LONG).show()
+                    }
+                } else {
+                    showError(tvError, "Failed to request password reset")
+                }
+            } catch (e: Exception) {
+                showError(tvError, "Connection error: ${e.message}")
+            }
+        }
     }
 
     private fun showError(tvError: TextView, message: String) {

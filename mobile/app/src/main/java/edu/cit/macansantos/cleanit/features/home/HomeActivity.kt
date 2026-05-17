@@ -6,6 +6,8 @@ import edu.cit.macansantos.cleanit.features.booking.CreateBookingActivity
 
 import edu.cit.macansantos.cleanit.features.booking.BookingDetailActivity
 
+import edu.cit.macansantos.cleanit.features.booking.BookingsActivity
+
 import edu.cit.macansantos.cleanit.features.auth.LoginActivity
 
 import edu.cit.macansantos.cleanit.R
@@ -14,7 +16,6 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.widget.*
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -25,6 +26,7 @@ import edu.cit.macansantos.cleanit.features.catalog.ServicesAdapter
 import edu.cit.macansantos.cleanit.features.booking.Booking
 import edu.cit.macansantos.cleanit.features.catalog.Service
 import edu.cit.macansantos.cleanit.shared.network.RetrofitClient
+import edu.cit.macansantos.cleanit.shared.session.SessionManager
 import kotlinx.coroutines.launch
 
 class HomeActivity : AppCompatActivity() {
@@ -65,7 +67,6 @@ class HomeActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_home)
 
-        // Get user data from intent
         userId = intent.getStringExtra("userId") ?: ""
         userName = intent.getStringExtra("name") ?: "User"
         userEmail = intent.getStringExtra("email") ?: ""
@@ -76,14 +77,12 @@ class HomeActivity : AppCompatActivity() {
         initializeViews()
         setupUserProfile()
         setupSwipeRefresh()
-        loadData()
+        refreshUserProfile()
     }
 
     private fun initializeViews() {
-        // Swipe Refresh
         swipeRefreshLayout = findViewById(R.id.swipeRefreshLayout)
         
-        // User Profile
         tvWelcome = findViewById(R.id.tvWelcome)
         tvEmail = findViewById(R.id.tvEmail)
         tvContact = findViewById(R.id.tvContact)
@@ -93,33 +92,46 @@ class HomeActivity : AppCompatActivity() {
         tvErrorMessage = findViewById(R.id.tvErrorMessage)
         tvSuccessMessage = findViewById(R.id.tvSuccessMessage)
 
-        // Active Bookings
         rvActiveBookings = findViewById(R.id.rvActiveBookings)
         tvNoActiveBookings = findViewById(R.id.tvNoActiveBookings)
         progressActiveBookings = findViewById(R.id.progressActiveBookings)
         rvActiveBookings.layoutManager = LinearLayoutManager(this)
 
-        // Services
         rvServices = findViewById(R.id.rvServices)
         tvVerificationLock = findViewById(R.id.tvVerificationLock)
         progressServices = findViewById(R.id.progressServices)
         rvServices.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
 
-        // Booking History
         rvBookingHistory = findViewById(R.id.rvBookingHistory)
         tvNoBookingHistory = findViewById(R.id.tvNoBookingHistory)
         progressBookingHistory = findViewById(R.id.progressBookingHistory)
         rvBookingHistory.layoutManager = LinearLayoutManager(this)
 
-        // Logout button
+        findViewById<Button>(R.id.btnViewProfile).setOnClickListener {
+            startActivity(Intent(this, ProfileActivity::class.java).apply {
+                putExtra("userId", userId)
+                putExtra("name", userName)
+                putExtra("email", userEmail)
+                putExtra("role", userRole)
+                putExtra("contact", userContact)
+                putExtra("verified", isVerified)
+            })
+        }
+
+        findViewById<Button>(R.id.btnViewAllBookings).setOnClickListener {
+            startActivity(Intent(this, BookingsActivity::class.java).apply {
+                putExtra("userId", userId)
+            })
+        }
+
         btnLogout.setOnClickListener {
+            SessionManager.clearSession(SessionManager.prefs(this))
             startActivity(Intent(this, LoginActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             })
             finish()
         }
         
-        // View All Services button
         findViewById<Button>(R.id.btnViewAllServices).setOnClickListener {
             startActivity(Intent(this, ServicesActivity::class.java).apply {
                 putExtra("userId", userId)
@@ -130,7 +142,7 @@ class HomeActivity : AppCompatActivity() {
     private fun setupSwipeRefresh() {
         swipeRefreshLayout.setColorSchemeColors(0xFF7C3AED.toInt())
         swipeRefreshLayout.setOnRefreshListener {
-            loadData()
+            refreshUserProfile()
         }
     }
 
@@ -139,7 +151,6 @@ class HomeActivity : AppCompatActivity() {
         tvEmail.text = userEmail
         tvContact.text = "📞 $userContact"
         
-        // Verification status
         if (isVerified) {
             tvVerificationStatus.text = "Verified"
             tvVerificationStatus.setBackgroundResource(R.drawable.badge_verified)
@@ -149,7 +160,38 @@ class HomeActivity : AppCompatActivity() {
         }
     }
 
+    private fun refreshUserProfile() {
+        if (userEmail.isBlank()) {
+            loadData()
+            return
+        }
+
+        lifecycleScope.launch {
+            try {
+                val response = RetrofitClient.instance.getUserProfile(userEmail)
+                if (response.isSuccessful && response.body() != null) {
+                    val profile = response.body()!!
+                    userId = profile.id ?: userId
+                    userName = profile.name ?: userName
+                    userEmail = profile.email ?: userEmail
+                    userRole = profile.role ?: userRole
+                    userContact = profile.contactNo ?: userContact
+                    isVerified = profile.verified == true
+                    SessionManager.saveUserProfile(SessionManager.prefs(this@HomeActivity), profile)
+                    setupUserProfile()
+                }
+            } catch (e: Exception) {
+                showError("Failed to refresh profile: ${e.message}")
+            }
+            loadData()
+        }
+    }
+
     private fun loadData() {
+        if (userId.isBlank()) {
+            swipeRefreshLayout.isRefreshing = false
+            return
+        }
         loadActiveBookings()
         loadServices()
         loadBookingHistory()
@@ -199,7 +241,7 @@ class HomeActivity : AppCompatActivity() {
             try {
                 val response = RetrofitClient.instance.getServices()
                 if (response.isSuccessful && response.body() != null) {
-                    val services = response.body()!!.take(4) // Show first 4 services
+                    val services = response.body()!!.take(4)
 
                     if (!isVerified) {
                         tvVerificationLock.visibility = View.VISIBLE
@@ -207,7 +249,6 @@ class HomeActivity : AppCompatActivity() {
 
                     val adapter = ServicesAdapter(services) { service ->
                         if (isVerified) {
-                            // Navigate to booking creation
                             startActivity(Intent(this@HomeActivity, CreateBookingActivity::class.java).apply {
                                 putExtra("serviceId", service.id)
                                 putExtra("userId", userId)
@@ -283,7 +324,8 @@ class HomeActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Refresh data when returning to this activity
-        loadData()
+        if (userId.isNotBlank()) {
+            loadData()
+        }
     }
 }

@@ -42,6 +42,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/auth/**").permitAll()
                 .requestMatchers("/uploads/**").permitAll()
                 .requestMatchers("/api/v1/admin/**").hasRole("admin")
+                .requestMatchers("/api/v1/technician/**").hasAnyRole("technician", "admin")
                 .anyRequest().authenticated()
             )
             .oauth2Login(oauth2 -> oauth2
