@@ -5,14 +5,19 @@ import com.G4.backend.features.booking.*;
 import com.G4.backend.features.users.User;
 import com.G4.backend.features.users.UserRepository;
 import com.G4.backend.shared.config.JwtService;
-import com.G4.backend.features.auth.*;
 import com.G4.backend.features.auth.UserFactory;
 import com.G4.backend.features.auth.UserEventPublisher;
 import com.G4.backend.features.auth.AuthenticationContext;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-import com.G4.backend.shared.config.JwtService;
+
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken.Payload;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.gson.GsonFactory;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,6 +27,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.UUID;
 import java.util.Map;
@@ -40,6 +46,9 @@ public class AuthService {
 
     private static final Logger logger = LoggerFactory.getLogger(AuthService.class);
     private static final int RESET_TOKEN_HOURS = 1;
+
+    @Value("${spring.security.oauth2.client.registration.google.client-id}")
+    private String googleClientId;
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -183,31 +192,48 @@ public class AuthService {
     }
 
     /**
-     * Authenticate user with Google ID token
-     * This method uses the existing OAuth flow from web
-     * For mobile app integration - simplified version that uses email from Google
+     * Authenticate user with Google ID token.
+     * The mobile app sends the real Google ID token obtained from the Google Sign-In SDK.
+     * This method verifies the token cryptographically using Google's public keys,
+     * then looks up the user by the verified email.
      */
     public LoginResponse authenticateWithGoogle(String idToken) {
-        // For now, we'll use a simplified approach:
-        // 1. The mobile app sends the Google ID token
-        // 2. We extract the email from the token (client-side verification)
-        // 3. We check if user exists and return their info
-        
-        // In production, you should verify the token with Google's API
-        // For now, we'll accept the email that comes with the token
-        
-        // Since the mobile app already verified the token with Google Sign-In SDK,
-        // we can trust it for this implementation
-        // The idToken parameter is actually the email for this simplified version
-        
-        String email = idToken; // Simplified: mobile sends email after Google verification
-        
+        if (idToken == null || idToken.isBlank()) {
+            throw new RuntimeException("Google ID token is required.");
+        }
+
+        // Verify the token with Google's public keys
+        GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(
+                new NetHttpTransport(), GsonFactory.getDefaultInstance())
+                .setAudience(Collections.singletonList(googleClientId))
+                .build();
+
+        GoogleIdToken googleIdToken;
+        try {
+            googleIdToken = verifier.verify(idToken);
+        } catch (Exception e) {
+            logger.warn("Google token verification failed: {}", e.getMessage());
+            throw new RuntimeException("Invalid Google token. Please sign in again.");
+        }
+
+        if (googleIdToken == null) {
+            throw new RuntimeException("Google token verification failed. Please sign in again.");
+        }
+
+        Payload payload = googleIdToken.getPayload();
+        String email = payload.getEmail();
+        String name = (String) payload.get("name");
+
+        if (email == null || email.isBlank()) {
+            throw new RuntimeException("Could not retrieve email from Google token.");
+        }
+
         Optional<User> userOpt = userRepository.findByEmail(email);
         if (userOpt.isPresent()) {
             User user = userOpt.get();
             String role = normalizeRole(user.getRole());
             String token = jwtService.generateToken(user.getEmail(), role);
-            
+
             return new LoginResponse.Builder()
                     .id(user.getId().toString())
                     .name(user.getName())
@@ -219,7 +245,7 @@ public class AuthService {
                     .message("Google sign-in successful")
                     .build();
         } else {
-            throw new RuntimeException("No account found with this Google email. Please register first or use a different account.");
+            throw new RuntimeException("No account found with this Google email (" + email + "). Please register first or use a different account.");
         }
     }
 

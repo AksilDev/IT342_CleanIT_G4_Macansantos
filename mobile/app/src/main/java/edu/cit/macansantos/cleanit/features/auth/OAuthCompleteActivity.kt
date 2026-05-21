@@ -73,6 +73,14 @@ class OAuthCompleteActivity : AppCompatActivity() {
             Toast.makeText(this, "ID image is required", Toast.LENGTH_SHORT).show()
             return
         }
+        // Image size validation — max 5MB
+        val imageSize = try {
+            contentResolver.openInputStream(selectedImageUri!!)?.use { it.available().toLong() } ?: 0L
+        } catch (_: Exception) { 0L }
+        if (imageSize > 5 * 1024 * 1024) {
+            Toast.makeText(this, "Image size must be less than 5MB", Toast.LENGTH_SHORT).show()
+            return
+        }
 
         progressBar.visibility = View.VISIBLE
         btnComplete.isEnabled = false

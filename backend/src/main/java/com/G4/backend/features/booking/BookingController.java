@@ -119,6 +119,7 @@ public class BookingController {
                         photoMap.put("id", photo.getId().toString());
                         photoMap.put("type", photo.getType().toString());
                         photoMap.put("fileUrl", photo.getFileUrl());
+                        photoMap.put("photoUrl", photo.getPhotoUrl());
                         photoMap.put("uploadedAt", photo.getUploadedAt() != null ? photo.getUploadedAt().toString() : null);
                         photosList.add(photoMap);
                     }
@@ -140,23 +141,21 @@ public class BookingController {
                     map.put("acceptanceMessage", "Waiting for technician to accept your booking...");
                 }
                 
-                // Add status-specific messages for client
-                switch (booking.getStatus()) {
-                    case PENDING:
-                        map.put("statusMessage", "Your booking is waiting for a technician to accept it.");
-                        break;
-                    case CONFIRMED:
-                        map.put("statusMessage", "Great! A technician has accepted your booking.");
-                        break;
-                    case IN_PROGRESS:
-                        map.put("statusMessage", "Your service is currently in progress.");
-                        break;
-                    case COMPLETED:
-                        map.put("statusMessage", "Your service has been completed successfully!");
-                        break;
-                    case CANCELLED:
-                        map.put("statusMessage", "This booking has been cancelled.");
-                        break;
+                // Keep this as explicit comparisons so the controller does not depend on
+                // a compiler-generated enum switch helper class at runtime.
+                BookingStatus status = booking.getStatus();
+                if (status == BookingStatus.PENDING) {
+                    map.put("statusMessage", "Your booking is waiting for a technician to accept it.");
+                } else if (status == BookingStatus.CONFIRMED) {
+                    map.put("statusMessage", "Great! A technician has accepted your booking.");
+                } else if (status == BookingStatus.IN_PROGRESS) {
+                    map.put("statusMessage", "Your service is currently in progress.");
+                } else if (status == BookingStatus.COMPLETED) {
+                    map.put("statusMessage", "Your service has been completed successfully!");
+                } else if (status == BookingStatus.CANCELLED) {
+                    map.put("statusMessage", "This booking has been cancelled.");
+                } else if (status == BookingStatus.NO_SHOW) {
+                    map.put("statusMessage", "The technician marked this booking as no-show.");
                 }
                 
                 response.add(map);

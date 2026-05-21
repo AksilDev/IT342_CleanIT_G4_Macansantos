@@ -16,6 +16,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.auth.api.signin.GoogleSignInStatusCodes
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.tasks.Task
 import edu.cit.macansantos.cleanit.features.auth.LoginRequest
@@ -42,13 +43,7 @@ class LoginActivity : AppCompatActivity() {
 
         sharedPreferences = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
 
-        // Configure Google Sign-In
-        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-            .requestIdToken(getString(R.string.default_web_client_id))
-            .requestEmail()
-            .build()
-
-        googleSignInClient = GoogleSignIn.getClient(this, gso)
+        googleSignInClient = GoogleSignIn.getClient(this, googleSignInOptions())
 
         setupViews()
         loadRememberedCredentials()
@@ -210,23 +205,34 @@ class LoginActivity : AppCompatActivity() {
         try {
             val account = completedTask.getResult(ApiException::class.java)
             val email = account?.email
+            val idToken = account?.idToken
 
-            if (email != null) {
+            if (email != null && idToken != null) {
                 val name = account.displayName ?: email.substringBefore("@")
-                authenticateWithBackend(email, name, progressBarGoogle, btnGoogleSignIn, tvError)
+                authenticateWithBackend(idToken, email, name, progressBarGoogle, btnGoogleSignIn, tvError)
+            } else if (email != null) {
+                // Fallback: no idToken — try oauth-check flow
+                val name = account.displayName ?: email.substringBefore("@")
+                authenticateWithBackend(null, email, name, progressBarGoogle, btnGoogleSignIn, tvError)
             } else {
-                showError(tvError, "Failed to get Google email")
+                showError(tvError, "Failed to get Google account info")
                 progressBarGoogle.visibility = View.GONE
                 btnGoogleSignIn.isEnabled = true
             }
         } catch (e: ApiException) {
-            showError(tvError, "Google sign-in failed: ${e.message}")
+            showError(tvError, googleSignInErrorMessage(e))
             progressBarGoogle.visibility = View.GONE
             btnGoogleSignIn.isEnabled = true
         }
     }
 
+    /**
+     * Authenticate with the backend using a Google ID token.
+     * If idToken is available, calls /v1/auth/google for full server-side verification.
+     * Falls back to the oauth-check flow when idToken is unavailable.
+     */
     private fun authenticateWithBackend(
+        idToken: String?,
         email: String,
         name: String,
         progressBar: ProgressBar,
@@ -235,6 +241,17 @@ class LoginActivity : AppCompatActivity() {
     ) {
         lifecycleScope.launch {
             try {
+                if (idToken != null) {
+                    val googleResponse = RetrofitClient.instance.googleAuth(mapOf("idToken" to idToken))
+                    if (googleResponse.isSuccessful && googleResponse.body() != null) {
+                        val user = googleResponse.body()!!
+                        RoleNavigator.saveSession(sharedPreferences, user)
+                        navigateToHome(user.name, user.email, user.role, user.id, user.contactNo, user.verified)
+                        return@launch
+                    }
+                }
+
+                // Fallback: no idToken, use email-based oauth-check
                 val checkResponse = RetrofitClient.instance.oauthCheck(mapOf("email" to email))
                 if (!checkResponse.isSuccessful || checkResponse.body() == null) {
                     showError(tvError, "Google authentication failed. Please try again.")
@@ -248,14 +265,7 @@ class LoginActivity : AppCompatActivity() {
                     if (profileResponse.isSuccessful && profileResponse.body() != null) {
                         val profile = profileResponse.body()!!
                         SessionManager.saveUserProfile(sharedPreferences, profile)
-                        navigateToHome(
-                            profile.name,
-                            profile.email,
-                            profile.role,
-                            profile.id,
-                            profile.contactNo,
-                            profile.verified
-                        )
+                        navigateToHome(profile.name, profile.email, profile.role, profile.id, profile.contactNo, profile.verified)
                     } else {
                         navigateToHome(name, email, check.role, null, null, false)
                     }
@@ -285,6 +295,26 @@ class LoginActivity : AppCompatActivity() {
     ) {
         Toast.makeText(this, "Welcome, $name!", Toast.LENGTH_SHORT).show()
         RoleNavigator.navigate(this, name, email, role, userId, contactNo, verified)
+    }
+
+    private fun googleSignInOptions(): GoogleSignInOptions {
+        val googleClientId = getString(R.string.default_web_client_id)
+        val builder = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestEmail()
+
+        if (googleClientId.isNotBlank() && googleClientId != "YOUR_GOOGLE_WEB_CLIENT_ID_HERE") {
+            builder.requestIdToken(googleClientId)
+        }
+
+        return builder.build()
+    }
+
+    private fun googleSignInErrorMessage(error: ApiException): String {
+        return if (error.statusCode == GoogleSignInStatusCodes.DEVELOPER_ERROR) {
+            "Google Sign-In is not configured for this app. Add an Android OAuth client for package edu.cit.macansantos.cleanit using this debug SHA-1: EE:5C:DE:4D:3D:AC:EE:6D:41:A8:AB:46:79:96:49:77:13:36:D7:83, then set the Web Client ID in strings.xml."
+        } else {
+            "Google sign-in failed: ${GoogleSignInStatusCodes.getStatusCodeString(error.statusCode)}"
+        }
     }
 
     private fun requestPasswordReset(email: String, tvError: TextView) {

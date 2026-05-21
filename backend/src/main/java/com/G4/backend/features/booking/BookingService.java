@@ -988,6 +988,7 @@ public class BookingService {
             item.put("id", photo.getId() != null ? photo.getId().toString() : null);
             item.put("type", photo.getType().toString());
             item.put("fileUrl", photo.getFileUrl());
+            item.put("photoUrl", photo.getPhotoUrl());
             item.put("uploadedAt", photo.getUploadedAt() != null ? photo.getUploadedAt().toString() : null);
             result.add(item);
         }

@@ -1,5 +1,5 @@
 <resources>
     <string name="app_name">CleanIT</string>
     <!-- TODO: Replace with your actual Google OAuth Web Client ID from Google Cloud Console -->
-    <string name="default_web_client_id">YOUR_GOOGLE_WEB_CLIENT_ID_HERE</string>
+    <string name="default_web_client_id">302554006024-9d1il9taso255v93uies6kjgkh8kqdh5.apps.googleusercontent.com</string>
 </resources>

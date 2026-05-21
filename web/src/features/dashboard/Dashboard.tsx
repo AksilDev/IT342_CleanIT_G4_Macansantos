@@ -63,6 +63,11 @@ export default function Dashboard() {
 	const [rescheduleReason, setRescheduleReason] = useState('');
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [successMessage, setSuccessMessage] = useState<string | null>(null);
+	const [showChangePassword, setShowChangePassword] = useState(false);
+	const [currentPassword, setCurrentPassword] = useState('');
+	const [newPassword, setNewPassword] = useState('');
+	const [confirmPassword, setConfirmPassword] = useState('');
+	const [changePwLoading, setChangePwLoading] = useState(false);
 	
 	// Handle OAuth redirect data and refresh after booking
 	useEffect(() => {
@@ -156,6 +161,47 @@ export default function Dashboard() {
 	const handleLogout = () => {
 		localStorage.removeItem('cleanit.user');
 		navigate('/login');
+	};
+
+	const handleChangePassword = async () => {
+		setErrorMessage(null);
+		if (!currentPassword.trim()) {
+			setErrorMessage('Current password is required.');
+			return;
+		}
+		if (newPassword.length < 8) {
+			setErrorMessage('New password must be at least 8 characters.');
+			return;
+		}
+		if (!/[A-Z]/.test(newPassword)) {
+			setErrorMessage('New password must contain at least one uppercase letter (A-Z).');
+			return;
+		}
+		if (!/\d/.test(newPassword)) {
+			setErrorMessage('New password must contain at least one number (0-9).');
+			return;
+		}
+		if (newPassword !== confirmPassword) {
+			setErrorMessage('Passwords do not match.');
+			return;
+		}
+		setChangePwLoading(true);
+		try {
+			const res = await api.post('/v1/user/change-password', {
+				currentPassword,
+				newPassword,
+			});
+			setSuccessMessage(res.data?.message ?? 'Password changed successfully.');
+			setTimeout(() => setSuccessMessage(null), 4000);
+			setShowChangePassword(false);
+			setCurrentPassword('');
+			setNewPassword('');
+			setConfirmPassword('');
+		} catch (err: any) {
+			setErrorMessage(err?.response?.data?.message ?? 'Failed to change password.');
+		} finally {
+			setChangePwLoading(false);
+		}
 	};
 
 	const handleBookService = (service: Service) => {
@@ -262,6 +308,12 @@ export default function Dashboard() {
 							</div>
 						</div>
 						<div className="mt-4 flex gap-2">
+							<button
+								onClick={() => { setShowChangePassword(true); setErrorMessage(null); }}
+								className="flex-1 rounded-lg border border-violet-300 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-100 transition-colors"
+							>
+								Change Password
+							</button>
 							<button
 								onClick={handleLogout}
 								className="flex-1 rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100 transition-colors"
@@ -728,6 +780,77 @@ export default function Dashboard() {
 									className="flex-1 rounded-lg bg-violet-600 py-2 text-sm font-semibold text-white hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed"
 								>
 									{reschedulingBooking === selectedBooking.id ? 'Rescheduling...' : 'Confirm Reschedule'}
+								</button>
+							</div>
+						</div>
+					</div>
+				</div>
+				)}
+
+			{/* Change Password Modal */}
+			{showChangePassword && (
+				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+					<div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+						<div className="mb-4 flex items-center justify-between">
+							<h3 className="text-lg font-bold text-slate-900">Change Password</h3>
+							<button
+								onClick={() => { setShowChangePassword(false); setCurrentPassword(''); setNewPassword(''); setConfirmPassword(''); setErrorMessage(null); }}
+								className="rounded-full p-1 hover:bg-slate-100"
+							>
+								✕
+							</button>
+						</div>
+
+						<div className="space-y-4">
+							<div>
+								<label className="block text-sm font-medium text-slate-700 mb-1">Current Password</label>
+								<input
+									type="password"
+									value={currentPassword}
+									onChange={(e) => setCurrentPassword(e.target.value)}
+									placeholder="Enter current password"
+									className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-100"
+								/>
+							</div>
+							<div>
+								<label className="block text-sm font-medium text-slate-700 mb-1">New Password</label>
+								<input
+									type="password"
+									value={newPassword}
+									onChange={(e) => setNewPassword(e.target.value)}
+									placeholder="Enter new password"
+									className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-100"
+								/>
+								<p className="mt-1 text-xs text-slate-400">Min 8 chars, 1 uppercase, 1 number</p>
+							</div>
+							<div>
+								<label className="block text-sm font-medium text-slate-700 mb-1">Confirm New Password</label>
+								<input
+									type="password"
+									value={confirmPassword}
+									onChange={(e) => setConfirmPassword(e.target.value)}
+									placeholder="Confirm new password"
+									className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-100"
+								/>
+							</div>
+
+							{errorMessage && (
+								<div className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{errorMessage}</div>
+							)}
+
+							<div className="flex gap-3 pt-2">
+								<button
+									onClick={() => { setShowChangePassword(false); setCurrentPassword(''); setNewPassword(''); setConfirmPassword(''); setErrorMessage(null); }}
+									className="flex-1 rounded-lg border border-slate-300 bg-white py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+								>
+									Cancel
+								</button>
+								<button
+									onClick={handleChangePassword}
+									disabled={changePwLoading}
+									className="flex-1 rounded-lg bg-violet-600 py-2 text-sm font-semibold text-white hover:bg-violet-700 disabled:opacity-50"
+								>
+									{changePwLoading ? 'Changing...' : 'Change Password'}
 								</button>
 							</div>
 						</div>

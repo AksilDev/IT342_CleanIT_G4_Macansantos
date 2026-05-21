@@ -25,7 +25,7 @@ class PhotosAdapter(
             tvPhotoDate.text = photo.uploadedAt ?: ""
             
             // Load image with Coil
-            ivPhoto.load(photo.fileUrl) {
+            ivPhoto.load(photo.fileUrl ?: photo.photoUrl) {
                 crossfade(true)
                 placeholder(R.drawable.ic_service_placeholder)
                 error(R.drawable.ic_service_placeholder)

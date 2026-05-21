@@ -15,6 +15,7 @@ import android.view.View
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.GridLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.ScrollView
@@ -25,6 +26,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.cardview.widget.CardView
 import androidx.lifecycle.lifecycleScope
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+import coil.load
+import coil.transform.RoundedCornersTransformation
 import edu.cit.macansantos.cleanit.features.dashboard.DashboardBooking
 import edu.cit.macansantos.cleanit.features.dashboard.TechnicianAvailabilityRequest
 import edu.cit.macansantos.cleanit.features.dashboard.TechnicianBookingActionRequest
@@ -160,8 +163,7 @@ class TechnicianDashboardActivity : AppCompatActivity() {
                         "Pending" to "${pendingBookings.size}",
                         "Confirmed" to "${stats?.confirmed ?: countStatus("confirmed")}",
                         "In Progress" to "${stats?.inProgress ?: countStatus("in_progress")}",
-                        "Completed" to "${stats?.completed ?: countStatus("completed")}",
-                        "Earnings" to "PHP ${"%.0f".format(stats?.totalEarnings ?: 0.0)}"
+                        "Completed" to "${stats?.completed ?: countStatus("completed")}"
                     )
                 )
 
@@ -673,8 +675,8 @@ class TechnicianDashboardActivity : AppCompatActivity() {
         photos: List<TechnicianBookingPhoto>,
         loading: Boolean
     ): View {
-        val beforeCount = photos.count { it.type == "BEFORE" }
-        val afterCount = photos.count { it.type == "AFTER" }
+        val beforePhotos = photos.filter { it.type == "BEFORE" }
+        val afterPhotos = photos.filter { it.type == "AFTER" }
         val panel = panelContainer()
 
         panel.addView(TextView(this).apply {
@@ -694,12 +696,17 @@ class TechnicianDashboardActivity : AppCompatActivity() {
             return panel
         }
 
-        panel.addView(photoUploadRow(booking, "Before Service Photos", "BEFORE", beforeCount))
-        panel.addView(photoUploadRow(booking, "After Service Photos", "AFTER", afterCount))
+        panel.addView(photoUploadRow(booking, "Before Service Photos", "BEFORE", beforePhotos))
+        panel.addView(photoUploadRow(booking, "After Service Photos", "AFTER", afterPhotos))
         return panel
     }
 
-    private fun photoUploadRow(booking: DashboardBooking, label: String, type: String, count: Int): View {
+    private fun photoUploadRow(
+        booking: DashboardBooking,
+        label: String,
+        type: String,
+        photos: List<TechnicianBookingPhoto>
+    ): View {
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(0, dp(12), 0, 0)
@@ -716,11 +723,35 @@ class TechnicianDashboardActivity : AppCompatActivity() {
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         })
         title.addView(TextView(this).apply {
-            text = "$count uploaded"
+            text = "${photos.size} uploaded"
             setTextColor(0xFF64748B.toInt())
             textSize = 11f
         })
         row.addView(title)
+
+        if (photos.isNotEmpty()) {
+            val imageStrip = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                setPadding(0, dp(8), 0, dp(2))
+            }
+            photos.take(3).forEach { photo ->
+                imageStrip.addView(ImageView(this).apply {
+                    scaleType = ImageView.ScaleType.CENTER_CROP
+                    background = rounded(0xFFE2E8F0.toInt(), dp(8))
+                    layoutParams = LinearLayout.LayoutParams(dp(82), dp(82)).apply {
+                        marginEnd = dp(8)
+                    }
+                    load(photo.fileUrl ?: photo.photoUrl) {
+                        crossfade(true)
+                        placeholder(R.drawable.ic_service_placeholder)
+                        error(R.drawable.ic_service_placeholder)
+                        transformations(RoundedCornersTransformation(dp(8).toFloat()))
+                    }
+                })
+            }
+            row.addView(imageStrip)
+        }
+
         row.addView(fullWidthButton("Select and Upload", 0xFF7C3AED.toInt()) {
             val bookingId = booking.id ?: return@fullWidthButton
             uploadBookingId = bookingId

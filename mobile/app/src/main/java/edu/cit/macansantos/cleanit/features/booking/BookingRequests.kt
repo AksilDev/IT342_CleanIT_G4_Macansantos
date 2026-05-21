@@ -48,5 +48,6 @@ data class BookingPhoto(
     val id: String?,
     val type: String?,
     val fileUrl: String?,
+    val photoUrl: String?,
     val uploadedAt: String?
 )
