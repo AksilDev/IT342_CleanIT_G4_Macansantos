@@ -21,15 +21,30 @@ class PhotosAdapter(
         val tvPhotoDate: TextView = itemView.findViewById(R.id.tvPhotoDate)
 
         fun bind(photo: BookingPhoto) {
-            tvPhotoType.text = photo.type ?: "PHOTO"
-            tvPhotoDate.text = photo.uploadedAt ?: ""
+            tvPhotoType.text = when (photo.type?.uppercase()) {
+                "BEFORE" -> "BEFORE"
+                "AFTER" -> "AFTER"
+                else -> "PHOTO"
+            }
+            tvPhotoDate.text = photo.uploadedAt?.take(10) ?: "" // Show only date part
             
-            // Load image with Coil
-            ivPhoto.load(photo.fileUrl ?: photo.photoUrl) {
-                crossfade(true)
-                placeholder(R.drawable.ic_service_placeholder)
-                error(R.drawable.ic_service_placeholder)
-                transformations(RoundedCornersTransformation(8f))
+            // Try fileUrl first, then photoUrl as fallback
+            val imageUrl = photo.fileUrl ?: photo.photoUrl
+            
+            if (!imageUrl.isNullOrBlank()) {
+                ivPhoto.load(imageUrl) {
+                    crossfade(true)
+                    placeholder(R.drawable.ic_service_placeholder)
+                    error(R.drawable.ic_service_placeholder)
+                    transformations(RoundedCornersTransformation(8f))
+                    listener(
+                        onError = { _, result ->
+                            android.util.Log.e("PhotosAdapter", "Failed to load image: $imageUrl", result.throwable)
+                        }
+                    )
+                }
+            } else {
+                ivPhoto.setImageResource(R.drawable.ic_service_placeholder)
             }
         }
     }

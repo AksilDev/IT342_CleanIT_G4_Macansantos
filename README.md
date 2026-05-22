@@ -44,8 +44,16 @@ A full-stack application for managing cleaning service bookings with role-based 
 - Retrofit 2.9.0 for API calls
 - Coil 2.5.0 for image loading
 - Coroutines for async operations
+- Google Play Services Auth 20.7.0
 - Min SDK: 24 (Android 7.0)
 - Target SDK: 34 (Android 14)
+
+**Architecture:**
+- Feature-based modular structure
+- MVVM-inspired pattern with Activities
+- Repository pattern via Retrofit
+- Shared utilities (navigation, session, network)
+- Material Design 3 components
 
 ### Backend
 - Java 17
@@ -67,17 +75,14 @@ A full-stack application for managing cleaning service bookings with role-based 
 .
 ├─ backend/
 │  └─ src/main/java/com/G4/backend/
+│     ├─ features/        # Feature-based vertical slices
+│     │  ├─ auth/         # Authentication & authorization
+│     │  ├─ booking/      # Booking management
+│     │  ├─ catalog/      # Services, add-ons, technicians
+│     │  └─ users/        # User management
 │     ├─ config/          # Security, JWT, OAuth2, initialization
-│     ├─ controller/      # REST API endpoints
-│     ├─ dto/             # Data transfer objects
-│     ├─ entity/          # JPA entities
-│     ├─ enums/           # Enumerations
-│     ├─ exception/       # Custom exceptions
-│     ├─ repository/      # Data access layer
-│     └─ service/         # Business logic
-│        ├─ decorator/    # Validation decorators
-│        ├─ factory/      # User factory
-│        └─ observer/     # Event observers
+│     ├─ exception/       # Custom exceptions & handlers
+│     └─ BackendApplication.java
 ├─ web/
 │  └─ src/
 │     ├─ api/             # Axios configuration
@@ -89,14 +94,101 @@ A full-stack application for managing cleaning service bookings with role-based 
 │     │  └─ dashboard/    # Role-specific dashboards
 │     └─ types/           # TypeScript definitions
 └─ mobile/
-   └─ app/src/main/
-      ├─ java/edu/cit/macansantos/cleanit/
-      │  ├─ adapter/      # RecyclerView adapters
-      │  ├─ model/        # Data models
-      │  └─ network/      # Retrofit API service
-      └─ res/
-         ├─ layout/       # XML layouts
-         └─ drawable/     # UI resources
+   └─ app/
+      ├─ build.gradle.kts # App-level Gradle configuration
+      └─ src/
+         ├─ main/
+         │  ├─ java/edu/cit/macansantos/cleanit/
+         │  │  ├─ features/           # Feature modules
+         │  │  │  ├─ auth/            # Authentication
+         │  │  │  │  ├─ LoginActivity.kt
+         │  │  │  │  ├─ RegisterActivity.kt
+         │  │  │  │  ├─ OAuthCompleteActivity.kt
+         │  │  │  │  ├─ ResetPasswordActivity.kt
+         │  │  │  │  └─ AuthModels.kt
+         │  │  │  ├─ booking/         # Booking management
+         │  │  │  │  ├─ BookingsActivity.kt
+         │  │  │  │  ├─ BookingDetailActivity.kt
+         │  │  │  │  ├─ CreateBookingActivity.kt
+         │  │  │  │  ├─ BookingsAdapter.kt
+         │  │  │  │  ├─ PhotosAdapter.kt
+         │  │  │  │  └─ BookingRequests.kt
+         │  │  │  ├─ catalog/         # Services & add-ons
+         │  │  │  │  ├─ ServicesActivity.kt
+         │  │  │  │  ├─ ServicesAdapter.kt
+         │  │  │  │  ├─ AddOnsAdapter.kt
+         │  │  │  │  ├─ TechniciansAdapter.kt
+         │  │  │  │  ├─ Service.kt
+         │  │  │  │  ├─ AddOn.kt
+         │  │  │  │  └─ Technician.kt
+         │  │  │  ├─ dashboard/       # Role-specific dashboards
+         │  │  │  │  ├─ AdminDashboardActivity.kt
+         │  │  │  │  ├─ AdminBookingsActivity.kt
+         │  │  │  │  ├─ TechnicianDashboardActivity.kt
+         │  │  │  │  ├─ AdminBookingModels.kt
+         │  │  │  │  └─ DashboardModels.kt
+         │  │  │  ├─ home/            # Client home & profile
+         │  │  │  │  ├─ HomeActivity.kt
+         │  │  │  │  └─ ProfileActivity.kt
+         │  │  │  └─ users/           # User models
+         │  │  │     └─ UserProfile.kt
+         │  │  ├─ shared/             # Shared utilities
+         │  │  │  ├─ navigation/      # Navigation helpers
+         │  │  │  │  └─ RoleNavigator.kt
+         │  │  │  ├─ network/         # API client
+         │  │  │  │  ├─ ApiService.kt
+         │  │  │  │  └─ RetrofitClient.kt
+         │  │  │  ├─ session/         # Session management
+         │  │  │  │  └─ SessionManager.kt
+         │  │  │  └─ util/            # Utilities
+         │  │  │     └─ ImageUploadHelper.kt
+         │  │  ├─ CleanITApplication.kt  # Application class
+         │  │  └─ MainActivity.kt         # Entry point
+         │  ├─ res/
+         │  │  ├─ layout/             # XML layouts (21 files)
+         │  │  │  ├─ activity_login.xml
+         │  │  │  ├─ activity_register.xml
+         │  │  │  ├─ activity_home.xml
+         │  │  │  ├─ activity_bookings.xml
+         │  │  │  ├─ activity_booking_detail.xml
+         │  │  │  ├─ activity_create_booking.xml
+         │  │  │  ├─ activity_services.xml
+         │  │  │  ├─ activity_admin_dashboard.xml
+         │  │  │  ├─ activity_admin_bookings.xml
+         │  │  │  ├─ activity_technician_dashboard.xml
+         │  │  │  ├─ activity_profile.xml
+         │  │  │  ├─ activity_oauth_complete.xml
+         │  │  │  ├─ activity_reset_password.xml
+         │  │  │  ├─ dialog_reschedule.xml
+         │  │  │  ├─ item_booking.xml
+         │  │  │  ├─ item_service.xml
+         │  │  │  ├─ item_addon.xml
+         │  │  │  ├─ item_technician.xml
+         │  │  │  └─ item_photo.xml
+         │  │  ├─ drawable/           # UI resources (15 files)
+         │  │  │  ├─ ic_google.xml
+         │  │  │  ├─ ic_eye.xml
+         │  │  │  ├─ ic_eye_off.xml
+         │  │  │  ├─ ic_service_placeholder.xml
+         │  │  │  ├─ badge_verified.xml
+         │  │  │  ├─ badge_unverified.xml
+         │  │  │  ├─ input_background.xml
+         │  │  │  ├─ input_background_light.xml
+         │  │  │  ├─ bg_avatar.xml
+         │  │  │  ├─ bg_empty_state.xml
+         │  │  │  ├─ bg_error_message.xml
+         │  │  │  ├─ bg_success_message.xml
+         │  │  │  └─ bg_warning_message.xml
+         │  │  ├─ values/
+         │  │  │  ├─ strings.xml      # App strings & Google Client ID
+         │  │  │  ├─ colors.xml       # Color palette
+         │  │  │  └─ themes.xml       # App themes
+         │  │  ├─ mipmap-*/           # App icons (all densities)
+         │  │  └─ xml/
+         │  │     └─ network_security_config.xml
+         │  └─ AndroidManifest.xml    # App manifest
+         ├─ androidTest/              # Instrumented tests
+         └─ test/                     # Unit tests
 ```
 
 ## Environment Variables
@@ -150,6 +242,9 @@ ADMIN_NAME=Super Admin
 - Maven 3.6+
 - PostgreSQL 14+
 - Android Studio (for mobile development)
+  - Android SDK 34
+  - Kotlin plugin
+  - Android Emulator or physical device
 
 ### Database Setup
 
@@ -183,9 +278,59 @@ Frontend: `http://localhost:5173`
 
 ### Run Mobile App
 
+#### Option 1: Android Studio (Recommended)
 1. Open `mobile/` folder in Android Studio
-2. Sync Gradle files
-3. Run on emulator or physical device
+2. Wait for Gradle sync to complete
+3. Select device/emulator from dropdown
+4. Click Run (▶️) button
+
+#### Option 2: Command Line
+```bash
+cd mobile
+
+# Build APK
+./gradlew assembleDebug
+
+# Install on connected device
+./gradlew installDebug
+
+# Or build and install in one command
+./gradlew clean assembleDebug installDebug
+```
+
+#### Network Configuration
+
+**For Android Emulator:**
+- API Base URL: `http://10.0.2.2:8080/api/`
+- Already configured in `RetrofitClient.kt`
+- No changes needed
+
+**For Physical Device:**
+1. Find your machine's IP address:
+   - Windows: `ipconfig` (look for IPv4)
+   - Mac/Linux: `ifconfig` or `ip addr`
+2. Update `RetrofitClient.kt`:
+   ```kotlin
+   private const val BASE_URL = "http://YOUR_IP:8080/api/"
+   // Example: "http://192.168.1.100:8080/api/"
+   ```
+3. Ensure your device and computer are on the same network
+4. Rebuild the app
+
+#### Google Sign-In Setup (Mobile)
+1. Get SHA-1 fingerprint:
+   ```bash
+   cd mobile
+   ./gradlew signingReport
+   ```
+2. Copy the SHA-1 from debug keystore
+3. Add to Google Cloud Console:
+   - Go to APIs & Services > Credentials
+   - Create Android OAuth client
+   - Package: `edu.cit.macansantos.cleanit`
+   - SHA-1: Your fingerprint
+4. Wait 10 minutes for propagation
+5. Rebuild and test
 
 **Note:** For physical device, update the API base URL in `RetrofitClient.kt` to your machine's IP address (e.g., `http://192.168.1.100:8080/api/`)
 
@@ -315,21 +460,45 @@ jjwt-api (0.11.5)
 
 ### Mobile (Android)
 ```kotlin
+// Core Android
+implementation("androidx.core:core-ktx:1.12.0")
+implementation("androidx.appcompat:appcompat:1.6.1")
+implementation("com.google.android.material:material:1.11.0")
+implementation("androidx.constraintlayout:constraintlayout:2.1.4")
+
 // Networking
 implementation("com.squareup.retrofit2:retrofit:2.9.0")
 implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
-// Async
+// Async & Lifecycle
 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
+implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0")
 
 // Image Loading
 implementation("io.coil-kt:coil:2.5.0")
 
-// UI
+// Google Sign-In
+implementation("com.google.android.gms:play-services-auth:20.7.0")
+
+// UI Components
 implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
-implementation("com.google.android.material:material:1.11.0")
+implementation("androidx.recyclerview:recyclerview:1.3.2")
+implementation("androidx.cardview:cardview:1.0.0")
+
+// Testing
+testImplementation("junit:junit:4.13.2")
+androidTestImplementation("androidx.test.ext:junit:1.1.5")
+androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
 ```
+
+**Build Configuration:**
+- Kotlin: 1.9.0
+- Gradle: 8.4
+- Min SDK: 24 (Android 7.0 Nougat)
+- Target SDK: 34 (Android 14)
+- Compile SDK: 34
 
 ## Deployment
 

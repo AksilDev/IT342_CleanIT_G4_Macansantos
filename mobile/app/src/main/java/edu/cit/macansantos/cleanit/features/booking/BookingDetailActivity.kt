@@ -122,17 +122,24 @@ class BookingDetailActivity : AppCompatActivity() {
     private fun displayBookingDetails() {
         booking?.let { b ->
             val status = b.status.orEmpty()
-            tvBookingCode.text = b.bookingCode ?: "Booking"
+            tvBookingCode.text = b.bookingCode ?: "N/A"
             tvServiceType.text = b.serviceType ?: "Service"
             tvDeviceType.text = b.deviceType?.uppercase() ?: "N/A"
             tvStatus.text = status.ifBlank { "unknown" }.uppercase()
             tvBookingDate.text = b.bookingDate ?: "N/A"
             tvTimeSlot.text = b.timeSlot ?: "N/A"
             tvAddress.text = b.address ?: "N/A"
-            tvLandmark.text = b.landmark ?: "N/A"
-            tvSpecialInstructions.text = b.specialInstructions ?: "None"
+            tvLandmark.text = if (b.landmark.isNullOrBlank()) "N/A" else b.landmark
+            tvSpecialInstructions.text = if (b.specialInstructions.isNullOrBlank()) "None" else b.specialInstructions
             tvTotalAmount.text = "PHP ${String.format("%.2f", b.totalAmount ?: 0.0)}"
-            tvTechnicianName.text = b.technicianName ?: "Not assigned yet"
+            
+            // Handle technician name for old bookings
+            tvTechnicianName.text = when {
+                !b.technicianName.isNullOrBlank() -> b.technicianName
+                status.lowercase() in listOf("completed", "cancelled", "voided") -> "Technician info not available"
+                else -> "Not assigned yet"
+            }
+            
             tvCreatedAt.text = b.createdAt ?: "N/A"
 
             // Display add-ons
@@ -164,11 +171,19 @@ class BookingDetailActivity : AppCompatActivity() {
                     if (b.statusReason?.lowercase()?.contains("no-show") == true || 
                         b.statusReason?.lowercase()?.contains("no show") == true) {
                         "⚠️ This booking was cancelled due to no-show. You were not available at the scheduled time."
+                    } else if (!b.statusReason.isNullOrBlank()) {
+                        "This booking has been cancelled. Reason: ${b.statusReason}"
                     } else {
                         "This booking has been cancelled."
                     }
                 }
-                "voided" -> "This booking was terminated by an administrator."
+                "voided" -> {
+                    if (!b.statusReason.isNullOrBlank()) {
+                        "This booking was terminated by an administrator. Reason: ${b.statusReason}"
+                    } else {
+                        "This booking was terminated by an administrator."
+                    }
+                }
                 else -> ""
             }
             tvStatusMessage.text = statusMessage

@@ -656,7 +656,7 @@ public class BookingService {
         map.put("serviceType", booking.getServiceType());
         map.put("deviceType", booking.getDeviceType());
         
-        // Convert add-on UUIDs to names for display
+        // Convert add-on UUIDs to formatted names "Name (₱Price)" for consistency
         List<String> addOnNames = new ArrayList<>();
         if (booking.getAddOns() != null && !booking.getAddOns().isEmpty()) {
             String[] addOnIds = booking.getAddOns().split(",");
@@ -665,7 +665,8 @@ public class BookingService {
                     UUID addOnUUID = UUID.fromString(addOnId.trim());
                     AddOn addOn = addOnRepository.findById(addOnUUID).orElse(null);
                     if (addOn != null) {
-                        addOnNames.add(addOn.getName());
+                        // Format as "Name (₱Price)" to match getClientBookings endpoint
+                        addOnNames.add(addOn.getName() + " (₱" + String.format("%.0f", addOn.getPrice()) + ")");
                     } else {
                         addOnNames.add(addOnId.trim()); // Fallback to UUID if not found
                     }
