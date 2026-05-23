@@ -2,11 +2,20 @@
 
 A full-stack application for managing cleaning service bookings with role-based access control. Available on Web and Android mobile platforms.
 
+## 🚀 Quick Links
+
+- **Docker Setup**: See [DOCKER_SETUP.md](DOCKER_SETUP.md)
+- **Physical Device Setup**: See [PHYSICAL_DEVICE_SETUP.md](PHYSICAL_DEVICE_SETUP.md)
+- **Project Status**: ~95% complete (backend + web + mobile)
+
 ## Repository Structure
 
 - `backend/` - Spring Boot REST API with JWT authentication
 - `web/` - React (Vite) frontend with TypeScript
 - `mobile/` - Android mobile app with Kotlin
+- `docker-compose.yml` - Docker orchestration for backend
+- `DOCKER_SETUP.md` - Complete Docker setup guide
+- `PHYSICAL_DEVICE_SETUP.md` - Quick guide for physical devices
 
 ## Features
 
@@ -47,6 +56,7 @@ A full-stack application for managing cleaning service bookings with role-based 
 - Google Play Services Auth 20.7.0
 - Min SDK: 24 (Android 7.0)
 - Target SDK: 34 (Android 14)
+- **Dynamic API Configuration**: Auto-detects emulator vs physical device
 
 **Architecture:**
 - Feature-based modular structure
@@ -54,6 +64,12 @@ A full-stack application for managing cleaning service bookings with role-based 
 - Repository pattern via Retrofit
 - Shared utilities (navigation, session, network)
 - Material Design 3 components
+- Dynamic API URL configuration with `ApiConfig.kt`
+
+**Recent Enhancements:**
+- ✅ Google Account Picker: Always shows account selection
+- ✅ Physical Device Support: Dynamic IP configuration
+- ✅ Docker Support: Backend containerization for easy deployment
 
 ### Backend
 - Java 17
@@ -74,121 +90,212 @@ A full-stack application for managing cleaning service bookings with role-based 
 ```
 .
 ├─ backend/
+│  ├─ Dockerfile                # Docker image definition
+│  ├─ .dockerignore            # Docker build exclusions
+│  ├─ pom.xml                  # Maven dependencies
 │  └─ src/main/java/com/G4/backend/
-│     ├─ features/        # Feature-based vertical slices
-│     │  ├─ auth/         # Authentication & authorization
-│     │  ├─ booking/      # Booking management
-│     │  ├─ catalog/      # Services, add-ons, technicians
-│     │  └─ users/        # User management
-│     ├─ config/          # Security, JWT, OAuth2, initialization
-│     ├─ exception/       # Custom exceptions & handlers
+│     ├─ features/             # Feature-based vertical slices
+│     │  ├─ auth/              # Authentication & authorization
+│     │  │  ├─ AuthController.java
+│     │  │  ├─ AuthService.java
+│     │  │  ├─ AuthenticationContext.java
+│     │  │  ├─ AuthenticationStrategy.java
+│     │  │  ├─ EmailPasswordAuthStrategy.java
+│     │  │  ├─ UserFactory.java
+│     │  │  ├─ UserEventPublisher.java
+│     │  │  ├─ UserEventObserver.java
+│     │  │  ├─ EmailNotificationObserver.java
+│     │  │  ├─ RegistrationValidator.java
+│     │  │  ├─ BaseRegistrationValidator.java
+│     │  │  ├─ ValidatorDecorator.java
+│     │  │  ├─ EmailValidationDecorator.java
+│     │  │  ├─ PasswordValidationDecorator.java
+│     │  │  ├─ PasswordResetToken.java
+│     │  │  ├─ PasswordResetTokenRepository.java
+│     │  │  ├─ LoginRequest.java
+│     │  │  ├─ LoginResponse.java
+│     │  │  ├─ RegisterRequest.java
+│     │  │  ├─ OAuthCompleteRequest.java
+│     │  │  ├─ ForgotPasswordRequest.java
+│     │  │  ├─ ResetPasswordRequest.java
+│     │  │  └─ ChangePasswordRequest.java
+│     │  ├─ booking/           # Booking management
+│     │  │  ├─ BookingController.java
+│     │  │  ├─ TechnicianBookingController.java
+│     │  │  ├─ BookingService.java
+│     │  │  ├─ BookingNotificationService.java
+│     │  │  ├─ Booking.java
+│     │  │  ├─ BookingRepository.java
+│     │  │  ├─ BookingStatus.java
+│     │  │  ├─ BookingException.java
+│     │  │  ├─ BookingAddon.java
+│     │  │  ├─ BookingAddonRepository.java
+│     │  │  ├─ BookingChecklist.java
+│     │  │  ├─ BookingChecklistRepository.java
+│     │  │  ├─ ChecklistItem.java
+│     │  │  ├─ ChecklistItemRepository.java
+│     │  │  ├─ BookingPhoto.java
+│     │  │  ├─ BookingPhotoRepository.java
+│     │  │  ├─ PhotoType.java
+│     │  │  ├─ BookingStatusUpdateRequest.java
+│     │  │  └─ RescheduleBookingRequest.java
+│     │  ├─ catalog/           # Services, add-ons, technicians
+│     │  │  ├─ ServiceController.java
+│     │  │  ├─ Service.java
+│     │  │  ├─ ServiceRepository.java
+│     │  │  ├─ AddOn.java
+│     │  │  ├─ AddOnRepository.java
+│     │  │  ├─ ServiceAllowedAddon.java
+│     │  │  └─ ServiceAllowedAddonRepository.java
+│     │  └─ users/             # User management
+│     │     ├─ UserController.java
+│     │     ├─ AdminController.java
+│     │     ├─ User.java
+│     │     ├─ UserRepository.java
+│     │     ├─ TechnicianSettings.java
+│     │     └─ TechnicianSettingsRepository.java
+│     ├─ shared/               # Shared infrastructure
+│     │  ├─ config/            # Configuration classes
+│     │  │  ├─ SecurityConfig.java
+│     │  │  ├─ JwtService.java
+│     │  │  ├─ JwtAuthenticationFilter.java
+│     │  │  ├─ OAuth2LoginSuccessHandler.java
+│     │  │  ├─ WebConfig.java
+│     │  │  ├─ StaticResourceConfig.java
+│     │  │  ├─ DataInitializer.java
+│     │  │  ├─ DatabaseSchemaFix.java
+│     │  │  └─ AdminConfig.java
+│     │  ├─ exception/         # Exception handling
+│     │  │  └─ GlobalExceptionHandler.java
+│     │  └─ storage/           # File storage
+│     │     └─ SupabaseStorageService.java
 │     └─ BackendApplication.java
 ├─ web/
+│  ├─ package.json             # Dependencies
+│  ├─ vite.config.ts           # Vite configuration
+│  ├─ tailwind.config.js       # Tailwind CSS config
 │  └─ src/
-│     ├─ api/             # Axios configuration
-│     ├─ components/      # Reusable components
-│     ├─ pages/           # Page components
-│     │  ├─ login/
-│     │  ├─ register/
-│     │  ├─ booking/
-│     │  └─ dashboard/    # Role-specific dashboards
-│     └─ types/           # TypeScript definitions
-└─ mobile/
-   └─ app/
-      ├─ build.gradle.kts # App-level Gradle configuration
-      └─ src/
-         ├─ main/
-         │  ├─ java/edu/cit/macansantos/cleanit/
-         │  │  ├─ features/           # Feature modules
-         │  │  │  ├─ auth/            # Authentication
-         │  │  │  │  ├─ LoginActivity.kt
-         │  │  │  │  ├─ RegisterActivity.kt
-         │  │  │  │  ├─ OAuthCompleteActivity.kt
-         │  │  │  │  ├─ ResetPasswordActivity.kt
-         │  │  │  │  └─ AuthModels.kt
-         │  │  │  ├─ booking/         # Booking management
-         │  │  │  │  ├─ BookingsActivity.kt
-         │  │  │  │  ├─ BookingDetailActivity.kt
-         │  │  │  │  ├─ CreateBookingActivity.kt
-         │  │  │  │  ├─ BookingsAdapter.kt
-         │  │  │  │  ├─ PhotosAdapter.kt
-         │  │  │  │  └─ BookingRequests.kt
-         │  │  │  ├─ catalog/         # Services & add-ons
-         │  │  │  │  ├─ ServicesActivity.kt
-         │  │  │  │  ├─ ServicesAdapter.kt
-         │  │  │  │  ├─ AddOnsAdapter.kt
-         │  │  │  │  ├─ TechniciansAdapter.kt
-         │  │  │  │  ├─ Service.kt
-         │  │  │  │  ├─ AddOn.kt
-         │  │  │  │  └─ Technician.kt
-         │  │  │  ├─ dashboard/       # Role-specific dashboards
-         │  │  │  │  ├─ AdminDashboardActivity.kt
-         │  │  │  │  ├─ AdminBookingsActivity.kt
-         │  │  │  │  ├─ TechnicianDashboardActivity.kt
-         │  │  │  │  ├─ AdminBookingModels.kt
-         │  │  │  │  └─ DashboardModels.kt
-         │  │  │  ├─ home/            # Client home & profile
-         │  │  │  │  ├─ HomeActivity.kt
-         │  │  │  │  └─ ProfileActivity.kt
-         │  │  │  └─ users/           # User models
-         │  │  │     └─ UserProfile.kt
-         │  │  ├─ shared/             # Shared utilities
-         │  │  │  ├─ navigation/      # Navigation helpers
-         │  │  │  │  └─ RoleNavigator.kt
-         │  │  │  ├─ network/         # API client
-         │  │  │  │  ├─ ApiService.kt
-         │  │  │  │  └─ RetrofitClient.kt
-         │  │  │  ├─ session/         # Session management
-         │  │  │  │  └─ SessionManager.kt
-         │  │  │  └─ util/            # Utilities
-         │  │  │     └─ ImageUploadHelper.kt
-         │  │  ├─ CleanITApplication.kt  # Application class
-         │  │  └─ MainActivity.kt         # Entry point
-         │  ├─ res/
-         │  │  ├─ layout/             # XML layouts (21 files)
-         │  │  │  ├─ activity_login.xml
-         │  │  │  ├─ activity_register.xml
-         │  │  │  ├─ activity_home.xml
-         │  │  │  ├─ activity_bookings.xml
-         │  │  │  ├─ activity_booking_detail.xml
-         │  │  │  ├─ activity_create_booking.xml
-         │  │  │  ├─ activity_services.xml
-         │  │  │  ├─ activity_admin_dashboard.xml
-         │  │  │  ├─ activity_admin_bookings.xml
-         │  │  │  ├─ activity_technician_dashboard.xml
-         │  │  │  ├─ activity_profile.xml
-         │  │  │  ├─ activity_oauth_complete.xml
-         │  │  │  ├─ activity_reset_password.xml
-         │  │  │  ├─ dialog_reschedule.xml
-         │  │  │  ├─ item_booking.xml
-         │  │  │  ├─ item_service.xml
-         │  │  │  ├─ item_addon.xml
-         │  │  │  ├─ item_technician.xml
-         │  │  │  └─ item_photo.xml
-         │  │  ├─ drawable/           # UI resources (15 files)
-         │  │  │  ├─ ic_google.xml
-         │  │  │  ├─ ic_eye.xml
-         │  │  │  ├─ ic_eye_off.xml
-         │  │  │  ├─ ic_service_placeholder.xml
-         │  │  │  ├─ badge_verified.xml
-         │  │  │  ├─ badge_unverified.xml
-         │  │  │  ├─ input_background.xml
-         │  │  │  ├─ input_background_light.xml
-         │  │  │  ├─ bg_avatar.xml
-         │  │  │  ├─ bg_empty_state.xml
-         │  │  │  ├─ bg_error_message.xml
-         │  │  │  ├─ bg_success_message.xml
-         │  │  │  └─ bg_warning_message.xml
-         │  │  ├─ values/
-         │  │  │  ├─ strings.xml      # App strings & Google Client ID
-         │  │  │  ├─ colors.xml       # Color palette
-         │  │  │  └─ themes.xml       # App themes
-         │  │  ├─ mipmap-*/           # App icons (all densities)
-         │  │  └─ xml/
-         │  │     └─ network_security_config.xml
-         │  └─ AndroidManifest.xml    # App manifest
-         ├─ androidTest/              # Instrumented tests
-         └─ test/                     # Unit tests
+│     ├─ features/             # Feature modules
+│     │  ├─ auth/              # Authentication pages
+│     │  │  ├─ Login.tsx
+│     │  │  ├─ Register.tsx
+│     │  │  ├─ ResetPassword.tsx
+│     │  │  ├─ RoleSelection.tsx
+│     │  │  └─ AuthCallback.tsx
+│     │  ├─ booking/           # Booking pages
+│     │  │  ├─ Booking.tsx
+│     │  │  └─ BookingDetailsModal.tsx
+│     │  └─ dashboard/         # Dashboard pages
+│     │     ├─ Dashboard.tsx   # Client dashboard
+│     │     ├─ Tdashboard.tsx  # Technician dashboard
+│     │     └─ Adashboard.tsx  # Admin dashboard
+│     ├─ shared/               # Shared utilities
+│     │  └─ api/               # API client configuration
+│     │     ├─ axios.ts        # Axios instance with interceptors
+│     │     └─ supabaseClient.ts # Supabase client for OAuth
+│     ├─ App.tsx               # Main app component with routing
+│     ├─ main.tsx              # Entry point
+│     └─ index.css             # Global styles (Tailwind)
+├─ mobile/
+│  └─ app/
+│     ├─ build.gradle.kts # App-level Gradle configuration
+│     └─ src/
+│        ├─ main/
+│        │  ├─ java/edu/cit/macansantos/cleanit/
+│        │  │  ├─ features/           # Feature modules
+│        │  │  │  ├─ auth/            # Authentication
+│        │  │  │  │  ├─ LoginActivity.kt
+│        │  │  │  │  ├─ RegisterActivity.kt
+│        │  │  │  │  ├─ OAuthCompleteActivity.kt
+│        │  │  │  │  ├─ ResetPasswordActivity.kt
+│        │  │  │  │  └─ AuthModels.kt
+│        │  │  │  ├─ booking/         # Booking management
+│        │  │  │  │  ├─ BookingsActivity.kt
+│        │  │  │  │  ├─ BookingDetailActivity.kt
+│        │  │  │  │  ├─ CreateBookingActivity.kt
+│        │  │  │  │  ├─ BookingsAdapter.kt
+│        │  │  │  │  ├─ PhotosAdapter.kt
+│        │  │  │  │  └─ BookingRequests.kt
+│        │  │  │  ├─ catalog/         # Services & add-ons
+│        │  │  │  │  ├─ ServicesActivity.kt
+│        │  │  │  │  ├─ ServicesAdapter.kt
+│        │  │  │  │  ├─ AddOnsAdapter.kt
+│        │  │  │  │  ├─ TechniciansAdapter.kt
+│        │  │  │  │  ├─ Service.kt
+│        │  │  │  │  ├─ AddOn.kt
+│        │  │  │  │  └─ Technician.kt
+│        │  │  │  ├─ dashboard/       # Role-specific dashboards
+│        │  │  │  │  ├─ AdminDashboardActivity.kt
+│        │  │  │  │  ├─ AdminBookingsActivity.kt
+│        │  │  │  │  ├─ TechnicianDashboardActivity.kt
+│        │  │  │  │  ├─ AdminBookingModels.kt
+│        │  │  │  │  └─ DashboardModels.kt
+│        │  │  │  ├─ home/            # Client home & profile
+│        │  │  │  │  ├─ HomeActivity.kt
+│        │  │  │  │  └─ ProfileActivity.kt
+│        │  │  │  └─ users/           # User models
+│        │  │  │     └─ UserProfile.kt
+│        │  │  ├─ shared/             # Shared utilities
+│        │  │  │  ├─ navigation/      # Navigation helpers
+│        │  │  │  │  └─ RoleNavigator.kt
+│        │  │  │  ├─ network/         # API client
+│        │  │  │  │  ├─ ApiConfig.kt  # Dynamic URL configuration
+│        │  │  │  │  ├─ ApiService.kt
+│        │  │  │  │  └─ RetrofitClient.kt
+│        │  │  │  ├─ session/         # Session management
+│        │  │  │  │  └─ SessionManager.kt
+│        │  │  │  └─ util/            # Utilities
+│        │  │  │     └─ ImageUploadHelper.kt
+│        │  │  ├─ CleanITApplication.kt  # Application class
+│        │  │  └─ MainActivity.kt         # Entry point
+│        │  ├─ res/
+│        │  │  ├─ layout/             # XML layouts (21 files)
+│        │  │  │  ├─ activity_login.xml
+│        │  │  │  ├─ activity_register.xml
+│        │  │  │  ├─ activity_home.xml
+│        │  │  │  ├─ activity_bookings.xml
+│        │  │  │  ├─ activity_booking_detail.xml
+│        │  │  │  ├─ activity_create_booking.xml
+│        │  │  │  ├─ activity_services.xml
+│        │  │  │  ├─ activity_admin_dashboard.xml
+│        │  │  │  ├─ activity_admin_bookings.xml
+│        │  │  │  ├─ activity_technician_dashboard.xml
+│        │  │  │  ├─ activity_profile.xml
+│        │  │  │  ├─ activity_oauth_complete.xml
+│        │  │  │  ├─ activity_reset_password.xml
+│        │  │  │  ├─ dialog_reschedule.xml
+│        │  │  │  ├─ item_booking.xml
+│        │  │  │  ├─ item_service.xml
+│        │  │  │  ├─ item_addon.xml
+│        │  │  │  ├─ item_technician.xml
+│        │  │  │  └─ item_photo.xml
+│        │  │  ├─ drawable/           # UI resources (15 files)
+│        │  │  │  ├─ ic_google.xml
+│        │  │  │  ├─ ic_eye.xml
+│        │  │  │  ├─ ic_eye_off.xml
+│        │  │  │  ├─ ic_service_placeholder.xml
+│        │  │  │  ├─ badge_verified.xml
+│        │  │  │  ├─ badge_unverified.xml
+│        │  │  │  ├─ input_background.xml
+│        │  │  │  ├─ input_background_light.xml
+│        │  │  │  ├─ bg_avatar.xml
+│        │  │  │  ├─ bg_empty_state.xml
+│        │  │  │  ├─ bg_error_message.xml
+│        │  │  │  ├─ bg_success_message.xml
+│        │  │  │  └─ bg_warning_message.xml
+│        │  │  ├─ values/
+│        │  │  │  ├─ strings.xml      # App strings & Google Client ID
+│        │  │  │  ├─ colors.xml       # Color palette
+│        │  │  │  └─ themes.xml       # App themes
+│        │  │  ├─ mipmap-*/           # App icons (all densities)
+│        │  │  └─ xml/
+│        │  │     └─ network_security_config.xml
+│        │  └─ AndroidManifest.xml    # App manifest
+│        ├─ androidTest/              # Instrumented tests
+│        └─ test/                     # Unit tests
+├─ docker-compose.yml          # Docker orchestration
+├─ DOCKER_SETUP.md            # Docker setup guide
+└─ PHYSICAL_DEVICE_SETUP.md   # Physical device guide
 ```
 
 ## Environment Variables
@@ -202,10 +309,14 @@ VITE_GOOGLE_CLIENT_ID=your_google_client_id
 
 ### Mobile (Android)
 
-No environment variables needed. API base URL is configured in:
-- `mobile/app/src/main/java/edu/cit/macansantos/cleanit/shared/network/RetrofitClient.kt`
-- Default: `http://10.0.2.2:8080/api/` (Android emulator)
-- For physical device: Update to your machine's IP address
+No environment variables needed. API base URL is dynamically configured in:
+- `mobile/app/src/main/java/edu/cit/macansantos/cleanit/shared/network/ApiConfig.kt`
+- **Emulator**: Automatically uses `http://10.0.2.2:8080/api/`
+- **Physical Device**: Configure your machine's IP address (e.g., `http://192.168.1.5:8080/api/`)
+
+**Google Sign-In Configuration:**
+- Web Client ID configured in `mobile/app/src/main/res/values/strings.xml`
+- Android OAuth client must be created in Google Cloud Console with SHA-1 fingerprint
 
 ### Backend (`backend/.env`)
 
@@ -240,13 +351,34 @@ ADMIN_NAME=Super Admin
 - Node.js 18+
 - Java 17
 - Maven 3.6+
-- PostgreSQL 14+
+- PostgreSQL 14+ (or use Docker)
+- **Docker Desktop** (recommended for backend)
 - Android Studio (for mobile development)
   - Android SDK 34
   - Kotlin plugin
   - Android Emulator or physical device
 
-### Database Setup
+### Option 1: Docker (Recommended)
+
+**Start Backend with Docker:**
+```bash
+# From project root
+docker-compose up --build
+```
+
+Backend will be available at: `http://localhost:8080`
+
+**Advantages:**
+- No PostgreSQL installation needed
+- Consistent environment
+- Easy deployment
+- Works on all platforms
+
+**See [DOCKER_SETUP.md](DOCKER_SETUP.md) for complete guide**
+
+### Option 2: Traditional Setup
+
+#### Database Setup
 
 1. Create database:
    ```sql
@@ -257,7 +389,7 @@ ADMIN_NAME=Super Admin
 
 3. Schema and seed data initialize automatically on first run
 
-### Start Backend
+#### Start Backend
 
 ```bash
 cd backend
@@ -302,37 +434,68 @@ cd mobile
 
 **For Android Emulator:**
 - API Base URL: `http://10.0.2.2:8080/api/`
-- Already configured in `RetrofitClient.kt`
-- No changes needed
+- **Automatically configured** - no changes needed
+- `ApiConfig.kt` auto-detects emulator
 
 **For Physical Device:**
+
+**Quick Setup (5 minutes):**
 1. Find your machine's IP address:
    - Windows: `ipconfig` (look for IPv4)
    - Mac/Linux: `ifconfig` or `ip addr`
-2. Update `RetrofitClient.kt`:
+   - Example: `192.168.1.5`
+
+2. Update `ApiConfig.kt`:
    ```kotlin
-   private const val BASE_URL = "http://YOUR_IP:8080/api/"
-   // Example: "http://192.168.1.100:8080/api/"
+   private const val LOCALHOST_URL = "http://YOUR_IP:8080/api/"
+   // Example: "http://192.168.1.5:8080/api/"
    ```
-3. Ensure your device and computer are on the same network
-4. Rebuild the app
+
+3. Ensure device and computer are on the same WiFi network
+
+4. Rebuild the app:
+   ```bash
+   cd mobile
+   ./gradlew clean assembleDebug installDebug
+   ```
+
+**See [PHYSICAL_DEVICE_SETUP.md](PHYSICAL_DEVICE_SETUP.md) for detailed guide**
 
 #### Google Sign-In Setup (Mobile)
+
+**Important:** Google Sign-In requires Android OAuth client configuration.
+
 1. Get SHA-1 fingerprint:
    ```bash
    cd mobile
    ./gradlew signingReport
    ```
-2. Copy the SHA-1 from debug keystore
-3. Add to Google Cloud Console:
-   - Go to APIs & Services > Credentials
-   - Create Android OAuth client
-   - Package: `edu.cit.macansantos.cleanit`
-   - SHA-1: Your fingerprint
-4. Wait 10 minutes for propagation
-5. Rebuild and test
+   Copy the SHA-1 from **debug keystore**
 
-**Note:** For physical device, update the API base URL in `RetrofitClient.kt` to your machine's IP address (e.g., `http://192.168.1.100:8080/api/`)
+2. Add to Google Cloud Console:
+   - Go to: https://console.cloud.google.com/
+   - Navigate to: APIs & Services > Credentials
+   - Click: **+ CREATE CREDENTIALS** > **OAuth client ID**
+   - Select: **Android**
+   - Fill in:
+     - **Package name**: `edu.cit.macansantos.cleanit`
+     - **SHA-1**: Your fingerprint from step 1
+   - Click: **Create**
+
+3. Wait 10 minutes for Google propagation
+
+4. Rebuild and test:
+   ```bash
+   cd mobile
+   ./gradlew clean assembleDebug installDebug
+   ```
+
+**Features:**
+- ✅ Account picker appears every time (can switch accounts)
+- ✅ Works with existing web accounts
+- ✅ Seamless OAuth flow
+
+**Note:** For physical device, also update the API base URL in `ApiConfig.kt` to your machine's IP address.
 
 ## API Endpoints
 
@@ -503,15 +666,18 @@ androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
 ## Deployment
 
 ### Backend Options
+- **Docker** (recommended) - See [DOCKER_SETUP.md](DOCKER_SETUP.md)
 - Heroku (Java buildpack + PostgreSQL)
 - AWS Elastic Beanstalk
 - Railway
 - Render
+- DigitalOcean App Platform
 
 ### Web Frontend Options
 - Vercel
 - Netlify
 - AWS S3 + CloudFront
+- GitHub Pages
 
 ### Mobile (Android) Options
 - Google Play Store (production)
@@ -519,44 +685,104 @@ androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
 - APK direct distribution (internal testing)
 
 ### Database Options
+- Supabase (currently used)
 - AWS RDS
 - Heroku Postgres
-- Supabase
 - Railway
+- DigitalOcean Managed Databases
 
 ## Troubleshooting
 
 ### Backend won't start
-- Check PostgreSQL is running
+- Check PostgreSQL is running (or use Docker: `docker-compose up`)
 - Verify database credentials in `.env`
 - Ensure Java 17 is installed: `java -version`
+- Check port 8080 is not in use: `netstat -ano | findstr :8080` (Windows)
 
 ### Web Frontend won't start
 - Clear node_modules: `rm -rf node_modules && npm install`
 - Check Node.js version: `node -v` (should be 18+)
-- Verify `.env` file exists
+- Verify `.env` file exists with correct API URL
 
 ### Mobile app won't build
 - Sync Gradle files in Android Studio
 - Check Android SDK is installed (SDK 34)
 - Verify Java 17 is configured in Android Studio
 - Clean and rebuild: `./gradlew clean assembleDebug`
+- Check internet connection (Gradle downloads dependencies)
 
 ### Mobile app can't connect to backend
-- Emulator: Use `http://10.0.2.2:8080/api/`
-- Physical device: Use your machine's IP (e.g., `http://192.168.1.100:8080/api/`)
-- Ensure backend is running and accessible
-- Check firewall settings
+- **Emulator**: Should use `http://10.0.2.2:8080/api/` (auto-configured)
+- **Physical device**: 
+  - Update `ApiConfig.kt` with your machine's IP
+  - Ensure device and computer on same WiFi
+  - Check firewall settings (allow port 8080)
+  - Test in browser: `http://YOUR_IP:8080/api/v1/auth/login`
+- Ensure backend is running: `docker-compose ps` or check `localhost:8080`
+
+### Google Sign-In not working (Mobile)
+- Verify Android OAuth client created in Google Cloud Console
+- Check SHA-1 fingerprint matches your debug keystore
+- Wait 10 minutes after creating OAuth client (propagation time)
+- Verify package name: `edu.cit.macansantos.cleanit`
+- Check `strings.xml` has correct Web Client ID
+- Rebuild app after configuration changes
+
+### Docker issues
+- Ensure Docker Desktop is running
+- Check port 8080 is available
+- Verify `.env` file exists in `backend/` directory
+- View logs: `docker-compose logs -f backend`
+- Rebuild: `docker-compose up --build`
+- See [DOCKER_SETUP.md](DOCKER_SETUP.md) for detailed troubleshooting
 
 ### Database connection errors
 - Verify PostgreSQL service is running
 - Check database exists: `psql -l`
+- Verify credentials in `backend/.env`
+- Check database URL format in `application.properties`
+
+---
+
+## 📊 Project Status
+
+**Overall Completion**: ~95%
+
+### Backend
+- ✅ 100% - All features implemented
+- ✅ JWT authentication
+- ✅ Google OAuth
+- ✅ Role-based access control
+- ✅ Supabase integration
+- ✅ Docker support
+
+### Web Frontend
+- ✅ 100% - All features implemented
+- ✅ React + TypeScript
+- ✅ Tailwind CSS
+- ✅ Role-specific dashboards
+- ✅ Google OAuth (Supabase)
+
+### Mobile (Android)
+- ✅ 95% - Core features complete
+- ✅ All backend features implemented
+- ✅ Google Sign-In with account picker
+- ✅ Physical device support
+- ✅ Dynamic API configuration
+- ⏳ UI enhancements planned (modern design)
+
+### Recent Updates
+- ✅ Google Account Picker: Always shows account selection
+- ✅ Physical Device Support: Dynamic IP configuration
+- ✅ Docker Support: Backend containerization
+- ✅ Booking Details: Enhanced display with photos
+- ✅ ScrollView Fix: Resolved crash issues
 
 ---
 
 ## Platform parity status
 
-**Web and mobile implement the same backend capabilities** for client, technician, and admin roles (per feature list above). Users can register on one platform and sign in on the other with email/password.
+**Web and mobile implement the same backend capabilities** for client, technician, and admin roles (per feature list above). Users can register on one platform and sign in on the other with email/password or Google.
 
 **Shared gaps (both platforms):** email delivery for reset tokens (tokens returned in API / server logs for local testing).
 
