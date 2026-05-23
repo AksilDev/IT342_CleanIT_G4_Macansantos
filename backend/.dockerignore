@@ -1,0 +1,38 @@
+# Maven
+target/
+.mvn/
+mvnw
+mvnw.cmd
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node modules (if any)
+node_modules/
+
+# Environment files (will be passed via docker-compose)
+.env.local
+.env.development
+.env.test
+
+# Documentation
+README.md
+CHANGELOG.md

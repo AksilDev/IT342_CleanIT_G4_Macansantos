@@ -10,9 +10,10 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
 object RetrofitClient {
-    private const val BASE_URL = "http://10.0.2.2:8080/api/"
     private var sharedPreferences: SharedPreferences? = null
     private var appContext: Context? = null
+    private var retrofit: Retrofit? = null
+    private var currentBaseUrl: String? = null
 
     /** Broadcast action sent when a 401 is received and session is cleared. */
     const val ACTION_UNAUTHORIZED = "edu.cit.macansantos.cleanit.UNAUTHORIZED"
@@ -20,6 +21,26 @@ object RetrofitClient {
     fun init(context: Context) {
         appContext = context.applicationContext
         sharedPreferences = context.getSharedPreferences("CleanITPrefs", Context.MODE_PRIVATE)
+    }
+    
+    /**
+     * Get the current base URL from ApiConfig
+     */
+    private fun getBaseUrl(): String {
+        return if (appContext != null) {
+            ApiConfig.getBaseUrl(appContext!!)
+        } else {
+            "http://10.0.2.2:8080/api/" // Fallback
+        }
+    }
+    
+    /**
+     * Force recreation of Retrofit instance
+     * Call this after changing API URL
+     */
+    fun recreate() {
+        retrofit = null
+        currentBaseUrl = null
     }
 
     /** Adds the JWT Bearer token to every outgoing request. */
@@ -68,12 +89,20 @@ object RetrofitClient {
         .addInterceptor(unauthorizedInterceptor)
         .build()
 
-    val instance: ApiService by lazy {
-        Retrofit.Builder()
-            .baseUrl(BASE_URL)
-            .client(okHttpClient)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-            .create(ApiService::class.java)
-    }
+    val instance: ApiService
+        get() {
+            val baseUrl = getBaseUrl()
+            
+            // Recreate Retrofit if base URL changed
+            if (retrofit == null || currentBaseUrl != baseUrl) {
+                currentBaseUrl = baseUrl
+                retrofit = Retrofit.Builder()
+                    .baseUrl(baseUrl)
+                    .client(okHttpClient)
+                    .addConverterFactory(GsonConverterFactory.create())
+                    .build()
+            }
+            
+            return retrofit!!.create(ApiService::class.java)
+        }
 }
