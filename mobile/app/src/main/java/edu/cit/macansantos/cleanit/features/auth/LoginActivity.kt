@@ -184,8 +184,12 @@ class LoginActivity : AppCompatActivity() {
         btnGoogle.isEnabled = false
         tvError.visibility = View.GONE
 
-        val signInIntent = googleSignInClient.signInIntent
-        startActivityForResult(signInIntent, RC_SIGN_IN)
+        // Sign out first to ensure account picker is always shown
+        googleSignInClient.signOut().addOnCompleteListener { task ->
+            // Show account picker regardless of sign-out success
+            val signInIntent = googleSignInClient.signInIntent
+            startActivityForResult(signInIntent, RC_SIGN_IN)
+        }
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
